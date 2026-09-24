@@ -1,0 +1,77 @@
+{
+  "name": "@igorsergien/react-widgets",
+  "version": "0.1.0",
+  "description": "A 3D laptop reveal for React: the lid opens, the camera pushes into the screen, and your content is on it.",
+  "keywords": [
+    "react",
+    "three",
+    "react-three-fiber",
+    "3d",
+    "laptop",
+    "hero",
+    "intro",
+    "animation",
+    "webgl"
+  ],
+  "license": "MIT",
+  "author": "Igor Sergienko",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SpaceHolderdJs/react-widgets.git"
+  },
+  "homepage": "https://github.com/SpaceHolderdJs/react-widgets#readme",
+  "bugs": "https://github.com/SpaceHolderdJs/react-widgets/issues",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./laptop.glb": "./assets/laptop.glb",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "assets",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm run build",
+    "example": "npm --prefix example run dev"
+  },
+  "peerDependencies": {
+    "@react-three/drei": ">=9.90.0",
+    "@react-three/fiber": ">=8.15.0",
+    "react": ">=18",
+    "react-dom": ">=18",
+    "three": ">=0.160.0"
+  },
+  "devDependencies": {
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.185.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "three": "^0.185.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.7.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
