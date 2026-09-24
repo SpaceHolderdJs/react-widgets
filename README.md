@@ -1,4 +1,4 @@
-# @igorsergien/react-widgets
+# @spaceholderdjsreact-widgets
 
 A laptop that opens itself.
 
