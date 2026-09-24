@@ -142,9 +142,33 @@ To avoid a blank first frame, warm the cache before the component mounts:
 LaptopReveal.preload('/laptop.glb');
 ```
 
-Any `.glb` works, as long as it matches the conventions in `src/geometry.ts`:
-levelled and centred, a `LidPivot` empty on the hinge axis whose `rotation.x`
-is the opening angle, and a `Lid` beneath it baked closed.
+### Using your own model
+
+`modelUrl` takes any `.glb`, so the bundled laptop is a default rather than a
+dependency. To swap it, the model has to meet the contract in
+`src/geometry.ts` — the runtime does no fitting of its own, deliberately, so
+that a frame costs two rotations and nothing else:
+
+| | |
+| --- | --- |
+| Orientation | Levelled and centred. The base sits flat on `y = 0`, the open lid faces **−Z**. |
+| `LidPivot` | An empty node on the hinge axis. Its `rotation.x` **is** the opening angle: `0` shut, `PI/2` upright. |
+| `Lid` | A child of `LidPivot`, geometry baked closed and hinge-centred. |
+| Scale | Roughly 0.4 units wide. The camera distances and light positions are tuned to that. |
+
+Then tell the component where the display is, by editing `SCREEN` in
+`src/geometry.ts` — width, height, and the offset of the panel inside the
+lid's local space. Record the same numbers in the model's `asset.extras` so
+the two can be checked against each other later; `laptop.glb` carries
+`extras.screen` and `extras.hinge` for exactly that reason.
+
+**Two things to check before you ship someone else's model.** First, that its
+licence allows redistribution inside an npm package *and* commercial use —
+"free to download" is not a licence. Second, that its textures carry no
+manufacturer's logo: a model of a real product almost always does, and a
+trademark is not covered by the asset's own licence however permissive that
+licence is. [NOTICE](./NOTICE) has the full checklist and the shape an entry
+takes.
 
 ## Next.js
 
@@ -166,16 +190,71 @@ There is no DOM access at module scope, so it will not break a server render.
 - The model is ~11.5k triangles, one material, one draw call per mesh.
 - `respectReducedMotion` skips straight to the final frame by default.
 
+## Releasing
+
+From a terminal, nothing else involved:
+
+```bash
+npm logout                    # discard whatever credential is cached
+npm login --auth-type=web     # opens a browser; approve with your passkey
+npm publish
+```
+
+`--auth-type=web` hands the second factor to the browser, so a passkey or a
+device security key works and there is no code to type. It is the default from
+npm 9 onwards; on npm 8.14–8.x pass it explicitly, and below that upgrade.
+
+`npm publish` runs `prepublishOnly` first, so a release that does not
+typecheck and build cannot go out.
+
+**If it still refuses**, the cached credential is the problem rather than the
+account. A `403 … Two-factor authentication or granular access token with
+bypass 2fa enabled is required` means npm is being handed a token that carries
+no 2FA assertion — usually a classic token, or one pasted into `~/.npmrc` by
+hand. `npm logout` does not always remove a hand-written `_authToken`, so
+check that file and delete the line before logging in again.
+
+<details>
+<summary>Automating it later</summary>
+
+`.github/workflows/publish.yml` publishes on a GitHub release through trusted
+publishing: npm verifies over OIDC that the release came from that workflow in
+this repo, so no `NPM_TOKEN` is stored anywhere and provenance is attached
+automatically. It needs a one-time setup on npmjs.com — **Package settings →
+Trusted Publisher → GitHub Actions**, with this repo and the workflow filename
+`publish.yml` — which can only be done once the package exists, so the first
+publish is manual either way.
+
+Do not reach for a long-lived publish token instead: granular access tokens
+with 2FA bypass lose sensitive account actions in August 2026 and the ability
+to publish at all around January 2027.
+
+</details>
+
+### npm v12
+
+npm v12 stopped running dependency install scripts by default. This package
+declares **no install scripts of its own** and no git or remote-URL
+dependencies, so installing it needs no approval from you. Building it does:
+`esbuild` — one package, reached through `tsup` — needs its `postinstall` to
+place a platform binary. On npm 12 or later, install it here with
+`npm install --allow-scripts=esbuild` rather than allowing the whole tree.
+
 ## Licence
 
 MIT for the code — see [LICENSE](./LICENSE).
 
-The 3D model in `assets/` is **not** MIT. It is based on "MacBook" by
+The assets in `assets/` are **not** MIT, and each carries its own terms. The
+laptop is based on "MacBook" by
 [Nicholas-3D](https://sketchfab.com/Nicholas01), licensed
 [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/), which permits
-commercial use and requires attribution. **If you ship the model, ship the
-credit** — see [NOTICE](./NOTICE) for the wording and the list of changes made
-to the original. The maker's mark has been removed from the textures; the model
+commercial use and requires attribution. **If you ship an asset, ship its
+credit** — including into bundled output, where it is easy to lose by
+accident. [NOTICE](./NOTICE) carries one entry per asset with the exact
+wording, the changes made to each original, and what to check before adding
+another.
+
+The maker's mark has been removed from the laptop's textures; the model
 carries no brand identification and this project is not affiliated with any
 hardware manufacturer.
 

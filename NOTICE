@@ -1,32 +1,94 @@
-This package includes a third-party 3D model.
+THIRD-PARTY ASSETS
+==================
 
-assets/laptop.glb
------------------
-This work is based on "MacBook"
-(https://sketchfab.com/3d-models/macbook-07f012fbd3bb4c37a1b9ed08533ee403)
-by Nicholas-3D (https://sketchfab.com/Nicholas01)
-licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/).
+The MIT licence in LICENSE covers this repository's source code only. It does
+not cover the binary assets in assets/, which come from elsewhere and carry
+their own terms.
 
-Changes made to the original:
-  - converted from glTF + separate textures to a single binary .glb;
-  - the model was levelled and centred, and a "LidPivot" empty was added on
-    the hinge axis so the lid's opening angle is a single rotation;
+Each asset is listed below with its licence, the credit that licence requires,
+and what was changed from the original. **If you ship a build that contains one
+of these files, its credit has to travel with it** — including into bundled or
+minified output, where it is easy to lose by accident.
+
+One entry per asset. Add to this file whenever an asset is added; see
+"Adding an asset" at the end.
+
+
+--------------------------------------------------------------------------
+assets/laptop.glb                                    used by <LaptopReveal>
+--------------------------------------------------------------------------
+
+Licence
+    CC-BY-4.0 — http://creativecommons.org/licenses/by/4.0/
+    Commercial use is allowed. Attribution is required.
+
+Required credit (copy verbatim wherever the model is shipped or shown)
+    This work is based on "MacBook"
+    (https://sketchfab.com/3d-models/macbook-07f012fbd3bb4c37a1b9ed08533ee403)
+    by Nicholas-3D (https://sketchfab.com/Nicholas01)
+    licensed under CC-BY-4.0
+    (http://creativecommons.org/licenses/by/4.0/)
+
+Changes from the original
+  - converted from glTF + loose textures to a single binary .glb;
+  - levelled and centred, so the base sits flat on y = 0;
+  - a "LidPivot" empty was added on the hinge axis, so the lid's opening
+    angle is one rotation rather than a transform to be derived;
   - the display rectangle and hinge position were measured and recorded in
-    asset.extras;
+    asset.extras, so a replacement model can be checked against them;
   - the maker's mark was removed from the baseColor and metallicRoughness
     textures. The geometry is unchanged.
 
-CC-BY-4.0 requires that this credit travels with the model. If you replace
-assets/laptop.glb with your own model you may remove this file; if you keep
-it, keep the credit — including in any build output that ships the model.
 
-The MIT licence in LICENSE covers this package's own source code only. It
-does not cover the model, which stays under CC-BY-4.0.
+--------------------------------------------------------------------------
+Replacing an asset
+--------------------------------------------------------------------------
 
+Every widget takes the asset it uses as a prop — <LaptopReveal> takes
+`modelUrl` — so nothing here is baked in. If you point a widget at your own
+file and stop shipping ours, that asset's obligations stop applying to your
+build, and you can delete its entry below the line in your fork.
+
+Do not delete an entry while still shipping the file it describes. For CC-BY
+in particular, dropping the credit is the one thing the licence does not
+allow, and a bundler will not warn you.
+
+
+--------------------------------------------------------------------------
+Adding an asset
+--------------------------------------------------------------------------
+
+Before committing a new model, texture, font or sound:
+
+  1. Check the licence actually permits redistribution inside an npm package,
+     and commercial use. "Free to download" is not a licence. CC-BY, CC0 and
+     the permissive code licences are fine; CC-BY-NC and most marketplace
+     "standard" licences are not.
+
+  2. Check it for third-party marks. A model of a real product usually
+     carries the manufacturer's logo in its textures, and a trademark is not
+     covered by the asset's own licence however permissive that licence is.
+     Remove the mark, or do not ship the asset.
+
+  3. Add an entry above in the same shape: file path, which widget uses it,
+     licence with URL, the credit verbatim as the author worded it, and every
+     change made to the original. Record measurements the runtime depends on
+     in asset.extras, as laptop.glb does.
+
+  4. If the licence is share-alike (CC-BY-SA, GPL-family), stop and think
+     first — it can reach further than the asset and is usually the wrong
+     choice for a package other people embed.
+
+
+--------------------------------------------------------------------------
 Trademarks
-----------
-Any trademarks referenced in the original model's title or source URL belong
-to their respective owners and are named here only to satisfy the attribution
-requirement above. This package is not affiliated with, endorsed by, or
-sponsored by any hardware manufacturer, and the shipped model carries no
-maker's mark or brand identification.
+--------------------------------------------------------------------------
+
+Trademarks named in an asset's original title, source URL or author credit
+belong to their owners, and appear here only because the licence requires the
+credit to be reproduced as written.
+
+This project is not affiliated with, endorsed by, or sponsored by any hardware
+manufacturer. The assets shipped here carry no maker's mark or other brand
+identification, and the component is named for what it does rather than for
+any product it might resemble.
