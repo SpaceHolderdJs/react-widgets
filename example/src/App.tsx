@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LaptopReveal } from '@igorsergien/react-widgets';
+import { LaptopReveal } from '@space_holder/react-widgets';
 
 /** The model is served from the package itself while developing. */
 const MODEL_URL = '/laptop.glb';

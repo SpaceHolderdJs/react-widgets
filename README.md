@@ -1,4 +1,4 @@
-# @spaceholderdjsreact-widgets
+# @space_holder/react-widgets
 
 A laptop that opens itself.
 
@@ -9,7 +9,7 @@ not a laptop shrinking away. Put a screenshot on it, or put real HTML on it.
 One widget for now. The package name leaves room for more.
 
 ```bash
-npm install @igorsergien/react-widgets three @react-three/fiber @react-three/drei
+npm install @space_holder/react-widgets three @react-three/fiber @react-three/drei
 ```
 
 `three`, `@react-three/fiber`, `@react-three/drei`, `react` and `react-dom` are
@@ -19,7 +19,7 @@ second copy of three.
 ## Use
 
 ```tsx
-import { LaptopReveal } from '@igorsergien/react-widgets';
+import { LaptopReveal } from '@space_holder/react-widgets';
 
 export default function Hero() {
   return (
@@ -115,13 +115,13 @@ The laptop is a 490 KB `.glb`. By default it is fetched from this package's
 copy on unpkg, so the component works with no build configuration:
 
 ```
-https://unpkg.com/@igorsergien/react-widgets@<version>/assets/laptop.glb
+https://unpkg.com/@space_holder/react-widgets@<version>/assets/laptop.glb
 ```
 
 **For production, serve it yourself.** Either copy it into your public folder:
 
 ```bash
-cp node_modules/@igorsergien/react-widgets/assets/laptop.glb public/
+cp node_modules/@space_holder/react-widgets/assets/laptop.glb public/
 ```
 
 ```tsx
@@ -131,7 +131,7 @@ cp node_modules/@igorsergien/react-widgets/assets/laptop.glb public/
 …or let your bundler fingerprint it (Vite, webpack 5, Next):
 
 ```tsx
-import modelUrl from '@igorsergien/react-widgets/laptop.glb';
+import modelUrl from '@space_holder/react-widgets/laptop.glb';
 
 <LaptopReveal modelUrl={modelUrl} />;
 ```
@@ -153,7 +153,7 @@ component is fine — but it still has to render on the client:
 
 ```tsx
 'use client';
-import { LaptopReveal } from '@igorsergien/react-widgets';
+import { LaptopReveal } from '@space_holder/react-widgets';
 ```
 
 There is no DOM access at module scope, so it will not break a server render.
