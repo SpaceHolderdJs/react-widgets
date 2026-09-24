@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 
-export interface LaptopRevealProps {
+/** What every widget in this package takes. */
+export interface RevealProps {
   /**
    * What is on the screen.
    *
@@ -14,55 +15,28 @@ export interface LaptopRevealProps {
   screen?: string | ReactNode;
 
   /**
-   * Where the laptop starts, in model units — the base is roughly 0.4 wide
-   * and sits on y = 0. During the reveal it animates from here to the origin;
-   * with `autoPlay={false}` it simply stays here.
-   *
-   * @default [0, -0.42, 0]
+   * Where the device starts, in model units. During the reveal it animates
+   * from here to the origin; with `autoPlay={false}` it simply stays here.
    */
   initialPosition?: [number, number, number];
 
   /**
-   * How the laptop is turned when it starts, in degrees. The reveal unwinds
+   * How the device is turned when it starts, in degrees. The reveal unwinds
    * this as it settles.
-   *
-   * @default [-66, 83, -19]
    */
   initialRotation?: [number, number, number];
 
-  /** Chassis, lid shell and palm rest. @default '#b8bcc0' */
-  laptopColor?: string;
-
-  /** Keys, trackpad and the dark trim around them. @default '#26282b' */
-  keyboardColor?: string;
-
   /**
-   * Play the reveal on mount: the laptop drops in, the lid opens, and the
-   * camera pushes into the screen until it fills the frame.
-   *
-   * With `false` nothing animates — `initialPosition`, `initialRotation` and
-   * `lidAngle` place the laptop and you drive it yourself.
-   *
+   * Play the reveal on mount. With `false` nothing animates and the props
+   * place the device, so you can drive it yourself.
    * @default true
    */
   autoPlay?: boolean;
 
-  /** Length of the reveal in milliseconds. @default 5200 */
+  /** Length of the reveal in milliseconds. */
   duration?: number;
 
-  /**
-   * Lid opening angle in degrees: 0 is shut, 90 upright, 103 the resting
-   * angle the reveal ends on. Only used when `autoPlay` is false.
-   * @default 103
-   */
-  lidAngle?: number;
-
-  /**
-   * Camera position in model units. Only used when `autoPlay` is false — the
-   * reveal derives its own path, ending at whatever distance makes the screen
-   * exactly cover the viewport.
-   * @default [0.5, 0.34, -0.78]
-   */
+  /** Camera position in model units. Only used when `autoPlay` is false. */
   cameraPosition?: [number, number, number];
 
   /** Vertical field of view in degrees. @default 38 */
@@ -96,4 +70,46 @@ export interface LaptopRevealProps {
 
   className?: string;
   style?: CSSProperties;
+}
+
+export interface LaptopRevealProps extends RevealProps {
+  /** @default [0, -0.42, 0] */
+  initialPosition?: [number, number, number];
+  /** @default [-66, 83, -19] */
+  initialRotation?: [number, number, number];
+  /** Chassis, lid shell and palm rest. @default '#b8bcc0' */
+  laptopColor?: string;
+  /** Keys, trackpad and the dark trim around them. @default '#26282b' */
+  keyboardColor?: string;
+  /**
+   * Lid opening angle in degrees: 0 is shut, 90 upright, 103 the resting
+   * angle the reveal ends on. Only used when `autoPlay` is false.
+   * @default 103
+   */
+  lidAngle?: number;
+  /** @default 5200 */
+  duration?: number;
+  /** @default [0.5, 0.34, -0.78] */
+  cameraPosition?: [number, number, number];
+}
+
+export interface PhoneRevealProps extends RevealProps {
+  /** @default [0, -0.38, 0] */
+  initialPosition?: [number, number, number];
+  /** @default [-54, -72, 16] */
+  initialRotation?: [number, number, number];
+  /** Chassis, chamfer and frame. @default '#c6cad0' */
+  bodyColor?: string;
+  /** Bezel, hinge trim and the dark inlays. @default '#15171a' */
+  trimColor?: string;
+  /**
+   * How far the book is open, in degrees: 180 is flat, 0 is shut with the two
+   * halves face to face. Only used when `autoPlay` is false.
+   * @default 180
+   */
+  foldAngle?: number;
+  /** @default 5000 */
+  duration?: number;
+  /** @default [-0.62, 0.38, 0.86] */
+  cameraPosition?: [number, number, number];
 }

@@ -41,6 +41,42 @@ Changes from the original
 
 
 --------------------------------------------------------------------------
+assets/phone.glb                                      used by <PhoneReveal>
+--------------------------------------------------------------------------
+
+Licence
+    CC-BY-4.0 — http://creativecommons.org/licenses/by/4.0/
+    Commercial use is allowed. Attribution is required.
+
+Required credit (copy verbatim wherever the model is shipped or shown)
+    This work is based on "iPhone Duo 3D Model - By Pikkme Studio"
+    (https://sketchfab.com/3d-models/iphone-duo-3d-model-by-pikkme-studio-d2ca6bff92c141d1b1c5759b19d533e0)
+    by PikkmeStudios (https://sketchfab.com/stockpikkme)
+    licensed under CC-BY-4.0
+    (http://creativecommons.org/licenses/by/4.0/)
+
+Changes from the original
+  - the download is four identical copies of the device; one was kept and the
+    other three discarded;
+  - the meshes named "apple-logo" were deleted, and material names carrying a
+    manufacturer's name were renamed to what the part is ("chassis", "trim",
+    "frame", "display");
+  - the texture's two screen regions were blanked. They carried a rendered
+    phone home screen — a manufacturer's application icons, its UI and its
+    wordmark — and a stock photograph. The model's CC-BY licence covers the
+    modeller's own work and cannot license any of that, so none of it ships
+    here. The rest of the atlas, which is the camera module and neutral
+    panels, is unchanged apart from re-encoding;
+  - the 223-node hierarchy was flattened and the device re-posed FLAT OPEN,
+    with the hinge on the Y axis through the origin and one bare pivot group
+    per wing, so a fold is one rotation per wing at runtime. The inner display
+    spans the crease in the original, so its triangles were divided between
+    the two wings at the hinge;
+  - welded, decimated and quantised (KHR_mesh_quantization) for size;
+  - the display rectangle and hinge were measured and recorded in
+    asset.extras.
+
+--------------------------------------------------------------------------
 Replacing an asset
 --------------------------------------------------------------------------
 

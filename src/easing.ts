@@ -16,3 +16,9 @@ export const easeOutBack = (x: number) => {
 
 /** Remaps a global 0→1 timeline onto a local 0→1 window. */
 export const span = (t: number, from: number, to: number) => clamp01((t - from) / (to - from));
+
+/** 0 below `from`, 1 above `to`, eased between. */
+export const smoothstep = (x: number, from: number, to: number) => {
+  const t = clamp01((x - from) / (to - from));
+  return t * t * (3 - 2 * t);
+};

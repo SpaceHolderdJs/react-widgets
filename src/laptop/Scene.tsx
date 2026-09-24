@@ -1,15 +1,16 @@
 import * as React from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Environment, Html, Lightformer, useGLTF, useTexture } from '@react-three/drei';
+import { useGLTF } from '@react-three/drei';
 
-import { SCREEN, SCREEN_ASPECT, SCREEN_ROTATION } from './geometry';
-import { easeInOut, easeOut, easeOutBack, lerp, span } from './easing';
-import { applyTint, setTint, type TintUniforms } from './tint';
+import { SCREEN, SCREEN_ROTATION } from './geometry';
+import { easeInOut, easeOut, easeOutBack, lerp, span } from '../easing';
+import { Screen } from '../shared/screen';
+import { Studio, Ready } from '../shared/studio';
+import type { Progress } from '../shared/reveal';
+import { applyTint, setTint, type TintUniforms } from '../tint';
 
-export type Progress = { t: number };
-
-export type SceneProps = {
+export type LaptopSceneProps = {
   progress: React.RefObject<Progress>;
   modelUrl: string;
   screen?: string | React.ReactNode;
@@ -25,22 +26,6 @@ export type SceneProps = {
 };
 
 const DEG = Math.PI / 180;
-
-/** HTML content is authored at this width, then scaled onto the panel. */
-const SCREEN_PX = 1440;
-
-/*
- * drei's Html in `transform` mode does not size the element from the camera —
- * it builds a CSS matrix3d and lets the browser's own perspective do the
- * projection. The object's scale is divided by `400 / distanceFactor`, so with
- * the default distanceFactor of 10 one world unit is 40 CSS pixels.
- *
- * distanceFactor is pinned below rather than left to default, so this constant
- * cannot silently drift if drei changes it.
- */
-const HTML_DISTANCE_FACTOR = 10;
-const HTML_PX_PER_UNIT = 400 / HTML_DISTANCE_FACTOR;
-const HTML_SCALE = (SCREEN.width / SCREEN_PX) * HTML_PX_PER_UNIT;
 
 /* ---------------------------------------------------------------- camera */
 
@@ -124,78 +109,6 @@ function CameraRig({
   });
 
   return null;
-}
-
-/* ---------------------------------------------------------------- screen */
-
-function TextureScreen({
-  src,
-  meshRef,
-  matRef,
-}: {
-  src: string;
-  meshRef: React.RefObject<THREE.Mesh | null>;
-  matRef: React.RefObject<THREE.MeshBasicMaterial | null>;
-}) {
-  const texture = useTexture(src, (loaded) => {
-    const map = Array.isArray(loaded) ? loaded[0] : loaded;
-    map.colorSpace = THREE.SRGBColorSpace;
-    map.anisotropy = 8;
-  });
-
-  return (
-    <mesh ref={meshRef} position={[0, SCREEN.y, SCREEN.z]} rotation={SCREEN_ROTATION}>
-      <planeGeometry args={[SCREEN.width, SCREEN.height]} />
-      <meshBasicMaterial ref={matRef} map={texture} toneMapped={false} transparent opacity={0} />
-    </mesh>
-  );
-}
-
-function HtmlScreen({
-  children,
-  meshRef,
-  matRef,
-  htmlRef,
-}: {
-  children: React.ReactNode;
-  meshRef: React.RefObject<THREE.Mesh | null>;
-  matRef: React.RefObject<THREE.MeshBasicMaterial | null>;
-  htmlRef: React.RefObject<HTMLDivElement | null>;
-}) {
-  return (
-    <mesh ref={meshRef} position={[0, SCREEN.y, SCREEN.z]} rotation={SCREEN_ROTATION}>
-      <planeGeometry args={[SCREEN.width, SCREEN.height]} />
-      {/* A backing plane, so the panel is never see-through while the HTML
-          layer fades in over it. */}
-      <meshBasicMaterial ref={matRef} color="#05070c" toneMapped={false} transparent opacity={0} />
-      <Html
-        transform
-        center
-        pointerEvents="none"
-        distanceFactor={HTML_DISTANCE_FACTOR}
-        scale={HTML_SCALE}
-        position={[0, 0, 0.0004]}
-        zIndexRange={[10, 0]}
-      >
-        <div
-          ref={htmlRef}
-          style={{
-            width: SCREEN_PX,
-            height: Math.round(SCREEN_PX / SCREEN_ASPECT),
-            overflow: 'hidden',
-            opacity: 0,
-            background: '#05070c',
-            // A real screen is not readable from behind. Without this the DOM
-            // layer shows through the closed lid, mirrored.
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-          }}
-        >
-          {children}
-        </div>
-      </Html>
-    </mesh>
-  );
 }
 
 /* ---------------------------------------------------------------- laptop */
@@ -322,21 +235,25 @@ function Laptop({
     if (glow.current) glow.current.intensity = wake * 0.5 + span(t, 0.82, 1) * 0.9;
   });
 
-  const isTexture = typeof screen === 'string';
-
   return (
     <group ref={root} dispose={null}>
       <primitive object={model.body} />
       <group ref={lid} position={model.hinge}>
         {model.pivot ? <primitive object={model.pivot} /> : null}
 
-        {isTexture ? (
-          <TextureScreen src={screen} meshRef={screenRef} matRef={screenMat} />
-        ) : (
-          <HtmlScreen meshRef={screenRef} matRef={screenMat} htmlRef={htmlRef}>
-            {screen}
-          </HtmlScreen>
-        )}
+        {/* The display: a plane laid into the lid's own local space. */}
+        <Screen
+          screen={screen}
+          rect={{
+            width: SCREEN.width,
+            height: SCREEN.height,
+            position: [0, SCREEN.y, SCREEN.z],
+            rotation: SCREEN_ROTATION,
+          }}
+          meshRef={screenRef}
+          matRef={screenMat}
+          htmlRef={htmlRef}
+        />
 
         {/* Backlight spill, so the open lid actually lights the keyboard. */}
         <pointLight
@@ -354,14 +271,6 @@ function Laptop({
 
 /* ----------------------------------------------------------------- stage */
 
-/** Fires once the suspended model and screen content have actually resolved. */
-function Ready({ onReady }: { onReady?: () => void }) {
-  React.useEffect(() => {
-    onReady?.();
-  }, [onReady]);
-  return null;
-}
-
 export default function Scene({
   progress,
   modelUrl,
@@ -375,46 +284,12 @@ export default function Scene({
   cameraPosition,
   background,
   onReady,
-}: SceneProps) {
+}: LaptopSceneProps) {
   const screenRef = React.useRef<THREE.Mesh | null>(null);
 
   return (
     <>
-      {background ? (
-        <>
-          <color attach="background" args={[background]} />
-          <fog attach="fog" args={[background, 1.1, 3.4]} />
-        </>
-      ) : null}
-
-      <ambientLight intensity={0.08} />
-      <directionalLight position={[1.2, 2, -1.6]} intensity={0.55} color="#dfe7ff" />
-      <directionalLight position={[-1.8, 0.7, 1.1]} intensity={0.35} color="#ffffff" />
-
-      {/* A dark studio: narrow strips that read as highlights sliding along the
-          chassis, not a room. Anything broader washes the aluminium out to grey
-          and the "starts in the dark" mood goes with it. Built from
-          Lightformers rather than an HDRI so nothing is fetched at runtime and
-          the component works in a fully static export. */}
-      <Environment resolution={256} frames={1}>
-        <Lightformer form="rect" intensity={1.5} position={[0.4, 1.4, -1.4]} scale={[2.6, 0.5, 1]} />
-        <Lightformer
-          form="rect"
-          intensity={0.55}
-          position={[-2, 0.5, -0.6]}
-          scale={[1.4, 1.8, 1]}
-          rotation-y={Math.PI / 2}
-          color="#93a8ff"
-        />
-        <Lightformer
-          form="rect"
-          intensity={0.45}
-          position={[2, 0.2, 0.4]}
-          scale={[1.4, 1.8, 1]}
-          rotation-y={-Math.PI / 2}
-          color="#ffd7a8"
-        />
-      </Environment>
+      <Studio background={background} />
 
       <Laptop
         progress={progress}

@@ -1,17 +1,20 @@
 {
   "name": "@space_holder/react-widgets",
   "version": "0.1.0",
-  "description": "A 3D laptop reveal for React: the lid opens, the camera pushes into the screen, and your content is on it.",
+  "description": "3D device reveals for React: a laptop that opens itself and a book-fold phone that unfolds, with your page on the screen.",
   "keywords": [
     "react",
     "three",
     "react-three-fiber",
     "3d",
     "laptop",
+    "phone",
+    "foldable",
     "hero",
     "intro",
     "animation",
-    "webgl"
+    "webgl",
+    "device-mockup"
   ],
   "license": "MIT",
   "author": "Igor Sergienko",
@@ -33,7 +36,8 @@
       "require": "./dist/index.cjs"
     },
     "./laptop.glb": "./assets/laptop.glb",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./phone.glb": "./assets/phone.glb"
   },
   "files": [
     "dist",
@@ -62,6 +66,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/three": "^0.185.0",
+    "playwright": "^1.56.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "three": "^0.185.1",
