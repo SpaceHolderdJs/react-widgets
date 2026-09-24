@@ -1,5 +1,5 @@
 {
-  "name": "@igorsergien/react-widgets",
+  "name": "@spaceholderdjs/react-widgets",
   "version": "0.1.0",
   "description": "A 3D laptop reveal for React: the lid opens, the camera pushes into the screen, and your content is on it.",
   "keywords": [
