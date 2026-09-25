@@ -1,25 +1,12 @@
 import * as React from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Html, useTexture } from '@react-three/drei';
+import { useTexture } from '@react-three/drei';
 
+import { quadTransform, type Corner } from './homography';
 
-/** HTML content is authored at this width, then scaled onto the panel. */
+/** HTML content is authored at this width, then mapped onto the panel. */
 export const SCREEN_PX = 1440;
-
-/*
- * drei's Html in `transform` mode does not size the element from the camera —
- * it builds a CSS matrix3d and lets the browser's own perspective do the
- * projection. The object's scale is divided by `400 / distanceFactor`, so with
- * the default distanceFactor of 10 one world unit is 40 CSS pixels.
- *
- * distanceFactor is pinned below rather than left to default, so this constant
- * cannot silently drift if drei changes it.
- */
-export const HTML_DISTANCE_FACTOR = 10;
-const HTML_PX_PER_UNIT = 400 / HTML_DISTANCE_FACTOR;
-
-export const htmlScale = (worldWidth: number) => (worldWidth / SCREEN_PX) * HTML_PX_PER_UNIT;
 
 export type ScreenRect = {
   width: number;
@@ -31,48 +18,40 @@ export type ScreenRect = {
 /**
  * How lit the display is, 0 → 1, written by the widget's timeline every frame.
  *
- * A ref rather than a prop: it changes every frame and a re-render per frame
- * would cost more than the animation it drives. A number rather than a DOM
- * ref, because the screen is drawn by up to three things at once — a mesh, a
- * projected DOM layer and a flat one — and the timeline should not have to
- * know which.
+ * A ref rather than a prop: it changes every frame, and a re-render per frame
+ * would cost more than the animation it drives.
  */
 export type ScreenOpacity = React.RefObject<number>;
 
 /**
- * The flat copy of the screen.
+ * The DOM layer that carries the screen's content.
  *
- * It is a 2D overlay on the canvas, not an object in the scene, so it is
- * rendered as an ordinary DOM sibling of the <Canvas> rather than through
- * drei's Html. That is not tidiness: Html mounts its own ReactDOM root, and
- * two of them per widget raced each other on unmount — React's "attempted to
- * synchronously unmount a root while React was already rendering", loudest
- * under StrictMode on a machine fast enough to interleave them.
- *
- * The scene writes to these refs every frame; nothing here re-renders.
+ * It is an ordinary sibling of the <Canvas>, not a child of the scene — see
+ * <HtmlScreen> for why the content is mapped onto the display with a
+ * homography rather than handed to CSS 3D.
  */
-export type FlatHandle = {
+export type ScreenHandle = {
   frame: React.RefObject<HTMLDivElement | null>;
-  content: React.RefObject<HTMLDivElement | null>;
 };
 
-export function useFlatHandle(): FlatHandle {
+export function useScreenHandle(): ScreenHandle {
   const frame = React.useRef<HTMLDivElement>(null);
-  const content = React.useRef<HTMLDivElement>(null);
-  return React.useMemo(() => ({ frame, content }), [frame, content]);
+  return React.useMemo(() => ({ frame }), [frame]);
 }
 
 /**
- * Rendered next to the <Canvas>, inside the wrapper the widget provides. It
- * starts hidden and stays hidden unless the camera pushes far enough in for
- * the hand-off.
+ * Rendered next to the <Canvas>, inside the wrapper the widget provides.
+ *
+ * `transform-origin: 0 0` is load bearing: the homography maps the element's
+ * own top-left corner onto the display's top-left corner, and any other origin
+ * puts it somewhere else entirely.
  */
-export function FlatScreen({
+export function ScreenSurface({
   handle,
   aspect,
   children,
 }: {
-  handle: FlatHandle;
+  handle: ScreenHandle;
   /** width / height of the display, so the content is authored to match. */
   aspect: number;
   children: React.ReactNode;
@@ -84,27 +63,20 @@ export function FlatScreen({
         position: 'absolute',
         top: 0,
         left: 0,
+        width: SCREEN_PX,
+        height: Math.round(SCREEN_PX / aspect),
+        transformOrigin: '0 0',
         display: 'none',
         overflow: 'hidden',
         background: '#05070c',
-        pointerEvents: 'none',
-        willChange: 'transform, width, height, opacity',
+        // Live, not a picture of live. The homography is invertible, so the
+        // browser hit tests through it: text on the panel selects, links on
+        // it click, and they do it at whatever angle the device is holding.
+        pointerEvents: 'auto',
+        willChange: 'transform, opacity',
       }}
     >
-      <div
-        ref={handle.content}
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          width: SCREEN_PX,
-          height: Math.round(SCREEN_PX / aspect),
-          transformOrigin: 'center',
-          transform: 'translate(-50%, -50%)',
-        }}
-      >
-        {children}
-      </div>
+      {children}
     </div>
   );
 }
@@ -141,250 +113,139 @@ export function TextureScreen({
   );
 }
 
-/* ------------------------------------------------------------- hand-off */
+/* ------------------------------------------------------------ live HTML */
 
 /*
- * Why there are two DOM layers below.
+ * How the DOM gets onto the display.
  *
- * `<Html transform>` is a CSS 3D projection: drei puts `perspective: Npx` on a
- * wrapper and hands the browser the camera and object matrices as CSS
- * transforms. CSS 3D has no near plane. A WebGL renderer clips geometry that
- * comes closer than `camera.near`; CSS just keeps dividing, so as a plane
- * approaches the perspective origin its magnification runs away and the DOM
- * layer comes unstuck from the mesh it is supposed to be painted on.
+ * The obvious tool is drei's <Html transform>, and it is the wrong one here.
+ * That builds a CSS 3D scene: a `perspective` on a wrapper, the camera and
+ * object matrices as CSS transforms, and the browser's own projection doing
+ * the rest. CSS 3D has no near plane — a WebGL renderer clips geometry closer
+ * than `camera.near`, CSS just keeps dividing — and its perspective distance
+ * is in PIXELS while the scene is in WORLD UNITS. The magnification works out
+ * at roughly the one over the other, so it grows with the height of the
+ * canvas, and every reveal here ends by pushing the camera close enough to
+ * make that number very large. The panel comes unstuck from the device and
+ * overshoots, worse on a tall canvas than a short one — the sort of bug that
+ * looks fine on the machine it was written on and wrong on everyone else's.
  *
- * Every reveal here ends by pushing the camera in until the display exactly
- * covers the viewport, which walks the panel straight into that region: it
- * detaches, overshoots, and the device is left looking like it has a dead
- * screen with a giant caption floating beside it. A texture never shows this,
- * because a texture is a mesh and goes through the same projection as the
- * device — which is why it survived every capture made with `?screen=<url>`.
+ * So the projection is done here instead. The display is a flat rectangle, so
+ * its image under any camera is a planar projective transform of that
+ * rectangle — a homography, fixed entirely by the four projected corners, and
+ * expressible as one CSS matrix3d. There is no perspective property, so
+ * nothing to approach and nothing to divide by zero; the element stays the
+ * size it was authored at however close the camera gets; and the same numbers
+ * come out on any canvas, at any device pixel ratio, at any field of view.
  *
- * So the layer is handed off. While the display is a shape in the scene, the
- * CSS-projected layer draws it. As it grows to fill the frame *and* turns
- * square on to the camera — the two conditions that together mean "this is
- * about to be a full-bleed page, not a device" — a flat, unprojected copy
- * fades in over the top, sized and placed from the display's own projected
- * rectangle. At the hand-off the two are the same picture, which is the point
- * of the move: the reveal ends on the content, not on the hardware.
+ * It costs four matrix multiplies a frame. It buys correctness that does not
+ * depend on the screen it happens to be running on.
  */
 
 const CORNERS: [number, number][] = [
-  [-0.5, -0.5],
-  [0.5, -0.5],
-  [0.5, 0.5],
-  [-0.5, 0.5],
+  [-0.5, 0.5], // top left, in the plane's own space, y up
+  [0.5, 0.5], // top right
+  [0.5, -0.5], // bottom right
+  [-0.5, -0.5], // bottom left
 ];
 
-type Projection = {
-  /** 0 → 1: how much of the tighter viewport axis the display spans. */
-  coverage: number;
-  /** 1 when the display faces the camera dead on. */
-  squareness: number;
-  /** The display's projected rectangle, in CSS pixels, relative to the canvas. */
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
+export function HtmlScreen({
+  rect,
+  meshRef,
+  opacity,
+  handle,
+}: {
+  rect: ScreenRect;
+  meshRef: React.RefObject<THREE.Mesh | null>;
+  opacity: ScreenOpacity;
+  handle?: ScreenHandle;
+}) {
+  const matRef = React.useRef<THREE.MeshBasicMaterial>(null);
+  const { camera, size, gl } = useThree();
 
-/**
- * Where the display lands on the viewport this frame.
- *
- * Projecting the four corners rather than the centre keeps this honest while
- * the panel is still turning: a display seen edge on projects to a sliver, and
- * `coverage` says so.
- */
-function useProjection(
-  meshRef: React.RefObject<THREE.Mesh | null>,
-  rect: ScreenRect,
-  onFrame: (p: Projection) => void,
-) {
-  const { camera, size } = useThree();
+  const contentHeight = Math.round(SCREEN_PX / (rect.width / rect.height));
+
   const scratch = React.useMemo(
     () => ({
       v: new THREE.Vector3(),
+      centre: new THREE.Vector3(),
       normal: new THREE.Vector3(),
-      forward: new THREE.Vector3(),
+      toCamera: new THREE.Vector3(),
       quat: new THREE.Quaternion(),
+      quad: [
+        { x: 0, y: 0 },
+        { x: 0, y: 0 },
+        { x: 0, y: 0 },
+        { x: 0, y: 0 },
+      ] as [Corner, Corner, Corner, Corner],
     }),
     [],
   );
 
   useFrame(() => {
     const mesh = meshRef.current;
-    if (!mesh) return;
+    const lit = opacity.current ?? 0;
+    if (matRef.current) matRef.current.opacity = Math.max(lit, 0.001);
+
+    const frame = handle?.frame.current;
+    if (!mesh || !frame) return;
+
+    if (lit <= 0.001) {
+      frame.style.display = 'none';
+      return;
+    }
 
     mesh.updateWorldMatrix(true, false);
     camera.updateMatrixWorld();
 
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
+    // Facing away? A real screen is not readable from behind, and a folded
+    // device should not show its content through its own back.
+    mesh.getWorldQuaternion(scratch.quat);
+    scratch.normal.set(0, 0, 1).applyQuaternion(scratch.quat);
+    scratch.centre.setFromMatrixPosition(mesh.matrixWorld);
+    scratch.toCamera.setFromMatrixPosition(camera.matrixWorld).sub(scratch.centre);
+    if (scratch.normal.dot(scratch.toCamera) <= 0) {
+      frame.style.display = 'none';
+      return;
+    }
 
-    for (const [cx, cy] of CORNERS) {
+    // The DOM layer is placed against the wrapper; the canvas may not start
+    // at the wrapper's own corner, if whoever mounted the widget gave it a
+    // border or some padding. Both are laid out against the same positioned
+    // ancestor, so one offset reconciles them.
+    const ox = gl.domElement.offsetLeft;
+    const oy = gl.domElement.offsetTop;
+
+    for (let k = 0; k < 4; k++) {
+      const [cx, cy] = CORNERS[k];
       scratch.v
         .set(cx * rect.width, cy * rect.height, 0)
         .applyMatrix4(mesh.matrixWorld)
         .project(camera);
-      if (scratch.v.x < minX) minX = scratch.v.x;
-      if (scratch.v.x > maxX) maxX = scratch.v.x;
-      if (scratch.v.y < minY) minY = scratch.v.y;
-      if (scratch.v.y > maxY) maxY = scratch.v.y;
+      // Normalised device coordinates, y up, to CSS pixels from the canvas's
+      // top left.
+      scratch.quad[k].x = ox + (scratch.v.x + 1) * 0.5 * size.width;
+      scratch.quad[k].y = oy + (1 - (scratch.v.y + 1) * 0.5) * size.height;
     }
 
-    // Normalised device coordinates run -1 → 1, so a span of 2 is the whole
-    // viewport on that axis.
-    const spanX = maxX - minX;
-    const spanY = maxY - minY;
-
-    mesh.getWorldQuaternion(scratch.quat);
-    scratch.normal.set(0, 0, 1).applyQuaternion(scratch.quat);
-    camera.getWorldDirection(scratch.forward);
-
-    onFrame({
-      coverage: Math.min(spanX, spanY) / 2,
-      squareness: Math.abs(scratch.normal.dot(scratch.forward)),
-      // NDC -1 → 1 with y up, to CSS pixels from the canvas's top left.
-      x: ((minX + maxX) / 2 + 1) * 0.5 * size.width,
-      y: (1 - ((minY + maxY) / 2 + 1) * 0.5) * size.height,
-      width: (spanX / 2) * size.width,
-      height: (spanY / 2) * size.height,
-    });
-  });
-}
-
-export function HtmlScreen({
-  children,
-  rect,
-  meshRef,
-  opacity,
-  flat: flatHandle,
-}: {
-  children: React.ReactNode;
-  rect: ScreenRect;
-  meshRef: React.RefObject<THREE.Mesh | null>;
-  opacity: ScreenOpacity;
-  flat?: FlatHandle;
-}) {
-  const contentHeight = Math.round(SCREEN_PX / (rect.width / rect.height));
-
-  const matRef = React.useRef<THREE.MeshBasicMaterial>(null);
-  const projectedLayer = React.useRef<HTMLDivElement>(null);
-  /** Which of the two layers is currently drawing the screen. */
-  const handedOff = React.useRef(false);
-
-  useProjection(meshRef, rect, ({ coverage, squareness, x, y, width, height }) => {
-    const lit = opacity.current ?? 0;
-
-    // Both conditions, multiplied: a big panel seen at an angle is still a
-    // device and wants its perspective, and a square-on panel that is small on
-    // screen is still a device too. Only when it is both does a flat copy read
-    // as the same picture.
-    const frame = flatHandle?.frame.current;
-    const content = flatHandle?.content.current;
-
-    // A switch, not a cross-fade, and driven by measurement rather than by a
-    // guess at when the projection gives out.
-    //
-    // drei's CSS perspective is `projectionMatrix[5] * height/2` PIXELS, while
-    // the object sits a fraction of a WORLD UNIT away — so the magnification
-    // is roughly that pixel figure divided by the distance, and it therefore
-    // scales with the height of the canvas. A tall canvas blows up sooner and
-    // harder than a short one. No fixed coverage or angle threshold can
-    // describe that; it has to be measured.
-    //
-    // So: compare what the browser actually rendered the layer as against the
-    // rectangle the display truly projects to. While they agree, the
-    // perspective layer is telling the truth and draws the screen. Once they
-    // diverge it has come unstuck, and the flat copy takes over — placed on
-    // that same true rectangle, so the swap lands where the panel should have
-    // been all along.
-    //
-    // A plane square on to the camera also hands over, whatever its size: at
-    // that angle the flat copy is not an approximation, it is the same image.
-    const el = projectedLayer.current;
-    let drift = 0;
-    if (el && el.style.display !== 'none' && width > 1) {
-      // Already laid out this frame; reading it back costs no extra work.
-      drift = Math.abs(el.getBoundingClientRect().width - width) / width;
+    const matrix = quadTransform(scratch.quad, SCREEN_PX, contentHeight);
+    if (!matrix) {
+      // Edge on, folded over, or through the camera: nothing honest to draw.
+      frame.style.display = 'none';
+      return;
     }
 
-    if (frame && content) {
-      handedOff.current = handedOff.current
-        ? squareness > 0.985 || coverage > 0.4 || drift > 0.04
-        : squareness > 0.995 || drift > 0.08;
-    } else {
-      handedOff.current = false;
-    }
-    const flat = handedOff.current ? 1 : 0;
-
-    if (matRef.current) matRef.current.opacity = Math.max(lit, 0.001);
-
-    if (projectedLayer.current) {
-      // display, not just opacity: a degenerate CSS 3D layer still costs
-      // layout at opacity 0, and can still paint a stray edge.
-      projectedLayer.current.style.display = flat ? 'none' : 'block';
-      projectedLayer.current.style.opacity = String(lit);
-    }
-
-    if (frame && content) {
-      const showing = flat === 1 && lit > 0.001;
-      frame.style.display = showing ? 'block' : 'none';
-      if (showing) {
-        const w = Math.round(width);
-        const h = Math.round(height);
-        frame.style.width = `${w}px`;
-        frame.style.height = `${h}px`;
-        // Placed from the display's own projected rectangle, so it lands
-        // exactly where the perspective layer was.
-        frame.style.transform = `translate(${Math.round(x) - w / 2}px, ${Math.round(y) - h / 2}px)`;
-        frame.style.opacity = String(lit);
-        // Cover, not contain: the display covers the viewport at the hand-off,
-        // cropping on whichever axis is not the limiting one.
-        const scale = Math.max(w / SCREEN_PX, h / contentHeight);
-        content.style.transform = `translate(-50%, -50%) scale(${scale})`;
-      }
-    }
+    frame.style.display = 'block';
+    frame.style.opacity = String(lit);
+    frame.style.transform = matrix;
   });
 
   return (
     <mesh ref={meshRef} position={rect.position} rotation={rect.rotation}>
       <planeGeometry args={[rect.width, rect.height]} />
-      {/* A backing plane, so the panel is never see-through while the HTML
-          layer fades in over it. */}
+      {/* A backing plane, so the panel is never see-through while the content
+          fades in over it, and so the display reads as glass when unlit. */}
       <meshBasicMaterial ref={matRef} color="#05070c" toneMapped={false} transparent opacity={0} />
-
-      {/* The display as a surface in the scene. The flat copy it hands off to
-          is a DOM sibling of the Canvas — see <FlatScreen>. */}
-      <Html
-        transform
-        center
-        pointerEvents="none"
-        distanceFactor={HTML_DISTANCE_FACTOR}
-        scale={htmlScale(rect.width)}
-        position={[0, 0, 0.0004]}
-        zIndexRange={[10, 0]}
-      >
-        <div
-          ref={projectedLayer}
-          style={{
-            width: SCREEN_PX,
-            height: contentHeight,
-            overflow: 'hidden',
-            opacity: 0,
-            background: '#05070c',
-            // A real screen is not readable from behind. Without this the DOM
-            // layer shows through the shut device, mirrored.
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-          }}
-        >
-          {children}
-        </div>
-      </Html>
-
     </mesh>
   );
 }
@@ -395,20 +256,16 @@ export function Screen({
   rect,
   meshRef,
   opacity,
-  flat,
+  handle,
 }: {
   screen?: string | React.ReactNode;
   rect: ScreenRect;
   meshRef: React.RefObject<THREE.Mesh | null>;
   opacity: ScreenOpacity;
-  flat?: FlatHandle;
+  handle?: ScreenHandle;
 }) {
   if (typeof screen === 'string') {
     return <TextureScreen src={screen} rect={rect} meshRef={meshRef} opacity={opacity} />;
   }
-  return (
-    <HtmlScreen rect={rect} meshRef={meshRef} opacity={opacity} flat={flat}>
-      {screen}
-    </HtmlScreen>
-  );
+  return <HtmlScreen rect={rect} meshRef={meshRef} opacity={opacity} handle={handle} />;
 }

@@ -8,7 +8,7 @@ import Scene from './Scene';
 import { FOLD_OPEN_DEG, SCREEN } from './geometry';
 import { useReveal } from '../shared/reveal';
 import { tuneRenderer, useDpr } from '../shared/studio';
-import { FlatScreen, useFlatHandle } from '../shared/screen';
+import { ScreenSurface, useScreenHandle } from '../shared/screen';
 import { cdnModelUrl, ModelBoundary } from '../shared/model';
 import type { FoldableRevealProps } from '../types';
 
@@ -68,14 +68,23 @@ export default function FoldableReveal({
     onReadyRef.current?.();
   }, []);
   const dpr = useDpr();
-  // The flat copy the reveal hands off to. It is a DOM sibling of the
-  // canvas rather than a layer inside the scene — see <FlatScreen>.
-  const flat = useFlatHandle();
+  // The DOM layer the display's content lives in. It is a sibling of the
+  // canvas, mapped onto the panel each frame — see <ScreenSurface>.
+  const handle = useScreenHandle();
 
   return (
     <div
       className={className}
-      style={{ position: 'relative', width: '100%', height: '100%', ...style }}
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        // The reveal ends with the camera inside the display, so the
+        // screen's DOM layer is larger than the widget by then. It is the
+        // widget's own box, not the page, that it is allowed to fill.
+        overflow: 'hidden',
+        ...style,
+      }}
     >
     <Canvas
       style={{ width: '100%', height: '100%', display: 'block' }}
@@ -99,16 +108,16 @@ export default function FoldableReveal({
           cameraPosition={cameraPosition}
           background={background}
           onReady={handleReady}
-          flat={flat}
+          handle={handle}
         />
         </React.Suspense>
       </ModelBoundary>
     </Canvas>
 
       {typeof screen === 'string' ? null : (
-        <FlatScreen handle={flat} aspect={SCREEN.width / SCREEN.height}>
+        <ScreenSurface handle={handle} aspect={SCREEN.width / SCREEN.height}>
           {screen}
-        </FlatScreen>
+        </ScreenSurface>
       )}
     </div>
   );

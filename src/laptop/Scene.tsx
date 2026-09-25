@@ -5,14 +5,14 @@ import { useGLTF } from '@react-three/drei';
 
 import { SCREEN, SCREEN_ROTATION } from './geometry';
 import { easeInOut, easeOut, easeOutBack, lerp, span } from '../easing';
-import { Screen, type FlatHandle } from '../shared/screen';
+import { Screen, type ScreenHandle } from '../shared/screen';
 import { Studio, Ready } from '../shared/studio';
 import type { Progress } from '../shared/reveal';
 import { applyTint, setTint, type TintUniforms } from '../tint';
 
 export type LaptopSceneProps = {
-  /** Where the flat hand-off copy lives; see <FlatScreen>. */
-  flat?: FlatHandle;
+  /** The DOM layer the screen content is mapped onto; see <ScreenSurface>. */
+  handle?: ScreenHandle;
   progress: React.RefObject<Progress>;
   modelUrl: string;
   screen?: string | React.ReactNode;
@@ -126,7 +126,7 @@ function Laptop({
   autoPlay,
   lidAngle,
   screenRef,
-  flat,
+  handle,
 }: {
   progress: React.RefObject<Progress>;
   modelUrl: string;
@@ -138,15 +138,14 @@ function Laptop({
   autoPlay: boolean;
   lidAngle: number;
   screenRef: React.RefObject<THREE.Mesh | null>;
-  flat?: FlatHandle;
+  handle?: ScreenHandle;
 }) {
   const { scene } = useGLTF(modelUrl);
   const root = React.useRef<THREE.Group>(null);
   const lid = React.useRef<THREE.Group>(null);
   const glow = React.useRef<THREE.PointLight>(null);
-  // One number for how lit the display is. <Screen> decides which of its
-  // layers that has to reach — the mesh, the projected DOM layer, or the flat
-  // copy it hands off to as the camera arrives.
+  // One number for how lit the display is. <Screen> decides what that has to
+  // reach — the backing mesh, and the DOM layer mapped onto it.
   const lit = React.useRef(0);
   const tints = React.useRef<TintUniforms[]>([]);
 
@@ -256,7 +255,7 @@ function Laptop({
           }}
           meshRef={screenRef}
           opacity={lit}
-          flat={flat}
+          handle={handle}
         />
 
         {/* Backlight spill, so the open lid actually lights the keyboard. */}
@@ -288,7 +287,7 @@ export default function Scene({
   cameraPosition,
   background,
   onReady,
-  flat,
+  handle,
 }: LaptopSceneProps) {
   const screenRef = React.useRef<THREE.Mesh | null>(null);
 
@@ -307,7 +306,7 @@ export default function Scene({
         autoPlay={autoPlay}
         lidAngle={lidAngle}
         screenRef={screenRef}
-        flat={flat}
+        handle={handle}
       />
       <CameraRig
         progress={progress}

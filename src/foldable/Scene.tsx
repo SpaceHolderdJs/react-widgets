@@ -4,7 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 
 import { easeInOut, easeOut, easeOutBack, lerp, smoothstep, span } from '../easing';
-import { Screen, type FlatHandle, type ScreenRect } from '../shared/screen';
+import { Screen, type ScreenHandle, type ScreenRect } from '../shared/screen';
 import { Studio, Ready } from '../shared/studio';
 import type { Progress } from '../shared/reveal';
 import { bindPalette, setPalette, type PaletteBinding, type PaletteGroup } from '../shared/palette';
@@ -23,8 +23,8 @@ const groupsFor = (body: string, trim: string): PaletteGroup[] => [
 ];
 
 export type FoldableSceneProps = {
-  /** Where the flat hand-off copy lives; see <FlatScreen>. */
-  flat?: FlatHandle;
+  /** The DOM layer the screen content is mapped onto; see <ScreenSurface>. */
+  handle?: ScreenHandle;
   progress: React.RefObject<Progress>;
   modelUrl: string;
   screen?: string | React.ReactNode;
@@ -130,7 +130,7 @@ function Foldable({
   autoPlay,
   foldAngle,
   screenRef,
-  flat,
+  handle,
 }: Omit<FoldableSceneProps, 'cameraPosition' | 'background' | 'onReady'> & {
   screenRef: React.RefObject<THREE.Mesh | null>;
 }) {
@@ -139,9 +139,8 @@ function Foldable({
   const wingA = React.useRef<THREE.Object3D | null>(null);
   const wingB = React.useRef<THREE.Object3D | null>(null);
   const glow = React.useRef<THREE.PointLight>(null);
-  // One number for how lit the display is. <Screen> decides which of its
-  // layers that has to reach — the mesh, the projected DOM layer, or the flat
-  // copy it hands off to as the camera arrives.
+  // One number for how lit the display is. <Screen> decides what that has to
+  // reach — the backing mesh, and the DOM layer mapped onto it.
   const lit = React.useRef(0);
   const palette = React.useRef<PaletteBinding[]>([]);
 
@@ -258,7 +257,7 @@ function Foldable({
       {/* One plane across both halves. The two wings are coplanar when flat,
           so a single panel is geometrically right; while the phone is still
           folding it is faded out, which is also when it would clip. */}
-      <Screen screen={screen} rect={rect} meshRef={screenRef} opacity={lit} flat={flat} />
+      <Screen screen={screen} rect={rect} meshRef={screenRef} opacity={lit} handle={handle} />
 
       <pointLight
         ref={glow}
@@ -285,7 +284,7 @@ export default function FoldableScene({
   cameraPosition,
   background,
   onReady,
-  flat,
+  handle,
 }: FoldableSceneProps) {
   const screenRef = React.useRef<THREE.Mesh | null>(null);
 
@@ -303,7 +302,7 @@ export default function FoldableScene({
         autoPlay={autoPlay}
         foldAngle={foldAngle}
         screenRef={screenRef}
-        flat={flat}
+        handle={handle}
       />
       <CameraRig
         progress={progress}

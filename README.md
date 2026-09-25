@@ -94,11 +94,29 @@ as actual DOM — selectable, styleable, interactive:
 />
 ```
 
-Content is authored at **1440 px wide** and scaled onto the panel, so size
+Content is authored at **1440 px wide** and mapped onto the panel, so size
 things as you would for a 1440px-wide viewport. The height follows the device:
 974 px on the laptop (3:2), 1021 px on the unfolded foldable (1.41:1), 3117 px on
 the phone (19.5:9 portrait — so for the phone, author at 1440 wide and expect a
 tall page). A texture is cheaper; prefer it when the content never changes.
+
+The panel is a sibling of the canvas, not a layer inside the 3D scene, and it
+is placed each frame with a **homography** — the four corners of the display
+are projected to screen pixels, and the one `matrix3d` that maps the content's
+rectangle onto that quadrilateral is applied to it. Two consequences worth
+knowing about:
+
+- **It is the same on every screen.** No CSS `perspective` is involved, so
+  nothing depends on the pixel height of the canvas. The panel lands in the
+  same place, to the last decimal, at 300 px tall and at 1000 px tall, at
+  `devicePixelRatio` 1 and 2.
+- **It stays the size you authored it.** However close the camera gets, the
+  element is still 1440 px wide; the transform does the rest. Nothing is ever
+  laid out at a runaway size, and there is no near plane to fall through.
+
+It also means the content is genuinely live at any angle: text on the display
+selects, and controls on it click, because the browser hit tests back through
+the same transform.
 
 ## Props
 
@@ -380,6 +398,9 @@ There is no DOM access at module scope, so it will not break a server render.
   unit across; they are 15 KB now and no pixel of the difference survives to
   the screen.
 - `respectReducedMotion` skips straight to the final frame by default.
+- Placing the HTML panel costs four vector projections and one 3x3 solve per
+  frame, and writes a single `transform`. The element itself never resizes, so
+  the browser relayouts nothing while the camera moves.
 
 ## Releasing
 

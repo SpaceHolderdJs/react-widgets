@@ -4,7 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 
 import { easeInOut, easeOut, easeOutBack, lerp, span } from '../easing';
-import { Screen, type FlatHandle, type ScreenRect } from '../shared/screen';
+import { Screen, type ScreenHandle, type ScreenRect } from '../shared/screen';
 import { Studio, Ready } from '../shared/studio';
 import type { Progress } from '../shared/reveal';
 import { bindPalette, setPalette, type PaletteBinding, type PaletteGroup } from '../shared/palette';
@@ -29,8 +29,8 @@ const groupsFor = (body: string, trim: string): PaletteGroup[] => [
 ];
 
 export type PhoneSceneProps = {
-  /** Where the flat hand-off copy lives; see <FlatScreen>. */
-  flat?: FlatHandle;
+  /** The DOM layer the screen content is mapped onto; see <ScreenSurface>. */
+  handle?: ScreenHandle;
   progress: React.RefObject<Progress>;
   modelUrl: string;
   screen?: string | React.ReactNode;
@@ -139,16 +139,15 @@ function Handset({
   autoPlay,
   turnAngle,
   screenRef,
-  flat,
+  handle,
 }: Omit<PhoneSceneProps, 'cameraPosition' | 'background' | 'onReady'> & {
   screenRef: React.RefObject<THREE.Mesh | null>;
 }) {
   const { scene } = useGLTF(modelUrl);
   const root = React.useRef<THREE.Group>(null);
   const glow = React.useRef<THREE.PointLight>(null);
-  // One number for how lit the display is. <Screen> decides which of its
-  // layers that has to reach — the mesh, the projected DOM layer, or the flat
-  // copy it hands off to as the camera arrives.
+  // One number for how lit the display is. <Screen> decides what that has to
+  // reach — the backing mesh, and the DOM layer mapped onto it.
   const lit = React.useRef(0);
   const palette = React.useRef<PaletteBinding[]>([]);
 
@@ -254,7 +253,7 @@ function Handset({
 
       {/* Edge to edge: the panel covers the display area exactly, which on
           this model runs to within a couple of millimetres of the rails. */}
-      <Screen screen={screen} rect={rect} meshRef={screenRef} opacity={lit} flat={flat} />
+      <Screen screen={screen} rect={rect} meshRef={screenRef} opacity={lit} handle={handle} />
 
       <pointLight
         ref={glow}
@@ -281,7 +280,7 @@ export default function PhoneScene({
   cameraPosition,
   background,
   onReady,
-  flat,
+  handle,
 }: PhoneSceneProps) {
   const screenRef = React.useRef<THREE.Mesh | null>(null);
 
@@ -299,7 +298,7 @@ export default function PhoneScene({
         autoPlay={autoPlay}
         turnAngle={turnAngle}
         screenRef={screenRef}
-        flat={flat}
+        handle={handle}
       />
       <CameraRig
         progress={progress}
