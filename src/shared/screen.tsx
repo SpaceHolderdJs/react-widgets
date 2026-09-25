@@ -3,7 +3,6 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html, useTexture } from '@react-three/drei';
 
-import { smoothstep } from '../easing';
 
 /** HTML content is authored at this width, then scaled onto the panel. */
 export const SCREEN_PX = 1440;
@@ -273,6 +272,8 @@ export function HtmlScreen({
 
   const matRef = React.useRef<THREE.MeshBasicMaterial>(null);
   const projectedLayer = React.useRef<HTMLDivElement>(null);
+  /** Which of the two layers is currently drawing the screen. */
+  const handedOff = React.useRef(false);
 
   useProjection(meshRef, rect, ({ coverage, squareness, x, y, width, height }) => {
     const lit = opacity.current ?? 0;
@@ -284,24 +285,40 @@ export function HtmlScreen({
     const frame = flatHandle?.frame.current;
     const content = flatHandle?.content.current;
 
-    // Only fade the perspective layer out if there is something mounted to
-    // fade into. A widget may legitimately render no <FlatScreen>, and a
-    // hand-off to a copy that is not there would dim the screen to nothing —
-    // which is worse than the parallax it exists to avoid, and looks for all
-    // the world like a dead display.
-    const flat =
-      frame && content
-        ? smoothstep(coverage, 0.6, 0.86) * smoothstep(squareness, 0.965, 0.995)
-        : 0;
+    // A switch, not a cross-fade.
+    //
+    // Fading between the two put both on screen at once, and by the time the
+    // fade had started the perspective layer was already coming unstuck — so
+    // what you saw was a sharp panel on the device with a large ghost of
+    // itself sliding off to one side. There is no window in which blending
+    // them is right, because the whole reason to hand over is that one of them
+    // has stopped being trustworthy.
+    //
+    // They draw the same content at the same projected rectangle once the
+    // display is square on and large in frame, so swapping outright is
+    // invisible. The thresholds sit well before the projection degenerates,
+    // and are split going in and coming out so a camera hovering near the
+    // boundary cannot flap between them.
+    if (frame && content) {
+      handedOff.current = handedOff.current
+        ? coverage > 0.42 && squareness > 0.88
+        : coverage > 0.52 && squareness > 0.93;
+    } else {
+      handedOff.current = false;
+    }
+    const flat = handedOff.current ? 1 : 0;
 
     if (matRef.current) matRef.current.opacity = Math.max(lit, 0.001);
 
     if (projectedLayer.current) {
-      projectedLayer.current.style.opacity = String(lit * (1 - flat));
+      // display, not just opacity: a degenerate CSS 3D layer still costs
+      // layout at opacity 0, and can still paint a stray edge.
+      projectedLayer.current.style.display = flat ? 'none' : 'block';
+      projectedLayer.current.style.opacity = String(lit);
     }
 
     if (frame && content) {
-      const showing = lit * flat > 0.001;
+      const showing = flat === 1 && lit > 0.001;
       frame.style.display = showing ? 'block' : 'none';
       if (showing) {
         const w = Math.round(width);
@@ -311,7 +328,7 @@ export function HtmlScreen({
         // Placed from the display's own projected rectangle, so it lands
         // exactly where the perspective layer was.
         frame.style.transform = `translate(${Math.round(x) - w / 2}px, ${Math.round(y) - h / 2}px)`;
-        frame.style.opacity = String(lit * flat);
+        frame.style.opacity = String(lit);
         // Cover, not contain: the display covers the viewport at the hand-off,
         // cropping on whichever axis is not the limiting one.
         const scale = Math.max(w / SCREEN_PX, h / contentHeight);
