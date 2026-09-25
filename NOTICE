@@ -41,7 +41,7 @@ Changes from the original
 
 
 --------------------------------------------------------------------------
-assets/phone.glb                                      used by <PhoneReveal>
+assets/foldable.glb                                used by <FoldableReveal>
 --------------------------------------------------------------------------
 
 Licence
@@ -77,6 +77,45 @@ Changes from the original
     asset.extras.
 
 --------------------------------------------------------------------------
+assets/handset.glb                                    used by <PhoneReveal>
+--------------------------------------------------------------------------
+
+Licence
+    CC-BY-4.0 — http://creativecommons.org/licenses/by/4.0/
+    Commercial use is allowed. Attribution is required.
+
+Required credit (copy verbatim wherever the model is shipped or shown)
+    This work is based on "iPhone 18 Pro Max - High Quality 3D Model"
+    (https://sketchfab.com/3d-models/iphone-18-pro-max-high-quality-3d-model-5e40716caa274a789de5b17798ee2e78)
+    by Pro Animator (https://sketchfab.com/Riju.mandal)
+    licensed under CC-BY-4.0
+    (http://creativecommons.org/licenses/by/4.0/)
+
+Changes from the original
+  - the embossed maker's mark on the back was erased. It is not a decal: the
+    modeller cut the shape out of the back panel and filled it with its own
+    mesh carrying its own material, and the two share every boundary vertex
+    to six decimal places. Deleting the insert would therefore have left a
+    hole in the exact shape of the mark — the mark again, in negative — so
+    its triangles were given the surrounding panel's material instead. What
+    ships is one continuous, unmarked surface;
+  - every material was renamed after the part it covers ("chassis", "trim",
+    "camera-plate", "display-panel" and so on). The originals were named for
+    a model designation, and a material name is the part of an asset most
+    likely to be quoted in application code;
+  - the studio ground plane was discarded;
+  - the roughly 5 degree lean the scene was posed with was undone, and the
+    model re-centred on its own bounding box and scaled to 0.72 units tall,
+    then turned to face +Z;
+  - the textures were rebuilt at 64 to 96 pixels and one normal map dropped.
+    The original carried about 4 MB of 1024-square maps for a speaker grille
+    weave, a mesh noise and a photograph of a flash lens, none of which is
+    more than a few hundredths of a unit across at runtime. They were checked
+    for marks first and carry none;
+  - welded, decimated and quantised (KHR_mesh_quantization) for size;
+  - the display rectangle was measured and recorded in asset.extras.
+
+--------------------------------------------------------------------------
 Replacing an asset
 --------------------------------------------------------------------------
 
@@ -101,10 +140,17 @@ Before committing a new model, texture, font or sound:
      the permissive code licences are fine; CC-BY-NC and most marketplace
      "standard" licences are not.
 
-  2. Check it for third-party marks. A model of a real product usually
-     carries the manufacturer's logo in its textures, and a trademark is not
-     covered by the asset's own licence however permissive that licence is.
-     Remove the mark, or do not ship the asset.
+  2. Check it for third-party marks, and check all three places they hide. A
+     model of a real product usually carries the manufacturer's logo in a
+     texture; sometimes as its own mesh; and sometimes as a shape cut out of
+     a panel and filled with an insert, where deleting the insert leaves the
+     mark behind as a hole. A trademark is not covered by the asset's own
+     licence however permissive that licence is. Remove the mark — filling
+     or absorbing it, not merely deleting it — or do not ship the asset.
+
+     Screen content counts too. A rendered home screen is a manufacturer's
+     icons, UI and wordmark, and a photograph in a mockup is someone else's
+     photograph.
 
   3. Add an entry above in the same shape: file path, which widget uses it,
      licence with URL, the credit verbatim as the author worded it, and every

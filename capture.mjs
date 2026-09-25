@@ -123,8 +123,9 @@ async function timeline(widget, prefix) {
 }
 
 const only = process.env.ONLY;
-if (!only || only === 'phone') await timeline('phone', 'phone');
-if (!only || only === 'laptop') await timeline('laptop', 'laptop');
+for (const widget of ['phone', 'foldable', 'laptop']) {
+  if (!only || only === widget) await timeline(widget, widget);
+}
 
 console.log(problems.size ? [...problems].slice(0, 6).join('\n') : 'NO JS ERRORS');
 await browser.close();

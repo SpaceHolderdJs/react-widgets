@@ -1,7 +1,7 @@
 {
   "name": "@space_holder/react-widgets",
-  "version": "0.1.0",
-  "description": "3D device reveals for React: a laptop that opens itself and a book-fold phone that unfolds, with your page on the screen.",
+  "version": "0.2.0",
+  "description": "3D device reveals for React: a laptop that opens itself, a book-fold phone that unfolds and a phone that turns over, with your page on the screen.",
   "keywords": [
     "react",
     "three",
@@ -9,6 +9,7 @@
     "3d",
     "laptop",
     "phone",
+    "handset",
     "foldable",
     "hero",
     "intro",
@@ -36,8 +37,9 @@
       "require": "./dist/index.cjs"
     },
     "./laptop.glb": "./assets/laptop.glb",
-    "./package.json": "./package.json",
-    "./phone.glb": "./assets/phone.glb"
+    "./foldable.glb": "./assets/foldable.glb",
+    "./handset.glb": "./assets/handset.glb",
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",

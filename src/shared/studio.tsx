@@ -14,17 +14,24 @@ import { Environment, Lightformer } from '@react-three/drei';
 export function Studio({
   background,
   intensity = 1,
+  fog = [1.1, 3.4],
 }: {
   background: string | null;
   /** Scales the studio. A mirror-polished body needs more to read at all. */
   intensity?: number;
+  /**
+   * Where the background starts to take over, in world units. It has to clear
+   * whatever distance the widget stages its camera at, or the device spends
+   * the establishing shot being faded into the backdrop.
+   */
+  fog?: [number, number];
 }) {
   return (
     <>
       {background ? (
         <>
           <color attach="background" args={[background]} />
-          <fog attach="fog" args={[background, 1.1, 3.4]} />
+          <fog attach="fog" args={[background, fog[0], fog[1]]} />
         </>
       ) : null}
 

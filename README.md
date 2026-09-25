@@ -6,10 +6,10 @@ frame — so the hand-off reads as a page opening, not a device shrinking away.
 
 Put a screenshot on the screen, or put real HTML on it.
 
-| | |
-| --- | --- |
-| <img src="https://raw.githubusercontent.com/SpaceHolderdJs/react-widgets/main/docs/media/laptop.gif" width="420" alt="LaptopReveal: the lid opens and the camera pushes into the screen"> | <img src="https://raw.githubusercontent.com/SpaceHolderdJs/react-widgets/main/docs/media/phone.gif" width="420" alt="PhoneReveal: the phone unfolds and the camera pushes into the screen"> |
-| **`<LaptopReveal>`** — the lid lifts, the panel wakes. | **`<PhoneReveal>`** — a book-fold opens flat across two screens. |
+| | | |
+| --- | --- | --- |
+| <img src="https://raw.githubusercontent.com/SpaceHolderdJs/react-widgets/main/docs/media/laptop.gif" width="280" alt="LaptopReveal: the lid opens and the camera pushes into the screen"> | <img src="https://raw.githubusercontent.com/SpaceHolderdJs/react-widgets/main/docs/media/foldable.gif" width="280" alt="FoldableReveal: the phone unfolds flat and the camera pushes into the screen"> | <img src="https://raw.githubusercontent.com/SpaceHolderdJs/react-widgets/main/docs/media/phone.gif" width="280" alt="PhoneReveal: the phone turns over and the camera pushes into the screen"> |
+| **`<LaptopReveal>`** — the lid lifts, the panel wakes. | **`<FoldableReveal>`** — a book-fold opens flat across two screens. | **`<PhoneReveal>`** — a phone turns over to show its screen. |
 
 ```bash
 npm install @space_holder/react-widgets three @react-three/fiber @react-three/drei
@@ -19,10 +19,54 @@ npm install @space_holder/react-widgets three @react-three/fiber @react-three/dr
 peer dependencies — the package brings none of them, so it cannot give you a
 second copy of three.
 
+## Three devices, one API
+
+They are the same component wearing different hardware. Every prop in
+**[Props](#props)** is shared; what differs is the two colour names and the one
+angle, because a lid, a fold and a turn are not the same thing.
+
+| | `<LaptopReveal>` | `<FoldableReveal>` | `<PhoneReveal>` |
+| --- | --- | --- | --- |
+| The move | the lid lifts | the book opens flat | the phone turns over |
+| Screen, at 1440 px wide | 1440 × 974 (3:2) | 1440 × 1021 (1.41:1) | 1440 × 3117 (19.5:9, portrait) |
+| Colours | `laptopColor`, `keyboardColor` | `bodyColor`, `trimColor` | `bodyColor`, `trimColor` |
+| Angle, in manual mode | `lidAngle` — 0 shut, 103 resting | `foldAngle` — 0 shut, 180 flat | `turnAngle` — 0 face on, 180 back on |
+| Model | `laptop.glb`, 487 KB | `foldable.glb`, 478 KB | `handset.glb`, 523 KB |
+| Triangles | ~11.5k | ~19k | ~14k |
+| Camera stages on | −Z | +Z | +Z |
+
+Pick by the shape of what goes on the screen, not by the device: the laptop
+suits a landscape screenshot, the foldable a near-square one, the phone a tall
+one. Nothing stops you putting a portrait page on the laptop — it will just
+letterbox, the same as it would on the real thing.
+
+```tsx
+import { LaptopReveal, FoldableReveal, PhoneReveal } from '@space_holder/react-widgets';
+
+<LaptopReveal   screen="/desktop.webp"  laptopColor="#b8bcc0" keyboardColor="#26282b" />
+<FoldableReveal screen="/tablet.webp"   bodyColor="#c6cad0"   trimColor="#15171a" />
+<PhoneReveal    screen="/mobile.webp"   bodyColor="#c3c7cb"   trimColor="#1b1d21" />
+```
+
+### More than one on a page
+
+Each widget owns a `<Canvas>`, so two of them are two WebGL contexts. Browsers
+cap those somewhere around eight to sixteen per page and silently kill the
+oldest when you go over, so a page of six device mockups is a page where the
+first one goes black. If you want a row of them, render one at a time — swap
+the mounted widget behind a tab, or mount on scroll and unmount on the way out.
+
+What is safe to repeat is the *same* widget: the loader caches a model per URL
+and this package clones materials once per material name, so a second
+`<PhoneReveal>` costs a canvas and no geometry.
+
+Only the widgets you import pull in their model. Importing all three and
+rendering one fetches one `.glb`.
+
 ## Use
 
 ```tsx
-import { LaptopReveal, PhoneReveal } from '@space_holder/react-widgets';
+import { LaptopReveal, FoldableReveal, PhoneReveal } from '@space_holder/react-widgets';
 
 export default function Hero() {
   return (
@@ -33,9 +77,7 @@ export default function Hero() {
 }
 ```
 
-Both widgets fill their parent, so give that parent a size. They take the same
-props except for the two colours and the hinge angle, which are named for the
-device.
+All three fill their parent, so give that parent a size.
 
 ### Real HTML on the screen
 
@@ -54,12 +96,13 @@ as actual DOM — selectable, styleable, interactive:
 
 Content is authored at **1440 px wide** and scaled onto the panel, so size
 things as you would for a 1440px-wide viewport. The height follows the device:
-974 px on the laptop (3:2), 1021 px on the unfolded phone (1.41:1). A texture is
-cheaper; prefer it when the content never changes.
+974 px on the laptop (3:2), 1021 px on the unfolded foldable (1.41:1), 3117 px on
+the phone (19.5:9 portrait — so for the phone, author at 1440 wide and expect a
+tall page). A texture is cheaper; prefer it when the content never changes.
 
 ## Props
 
-Both widgets share this set:
+All three share this set:
 
 | Prop | Type | Default | |
 | --- | --- | --- | --- |
@@ -109,7 +152,7 @@ lines survive whatever colours you choose.
 The screen glass is deliberately left alone; tinting it turns the bezel into a
 coloured frame.
 
-### `<PhoneReveal>`
+### `<FoldableReveal>`
 
 | Prop | Type | Default | |
 | --- | --- | --- | --- |
@@ -121,7 +164,7 @@ coloured frame.
 | `duration` | | `5000` | |
 | `cameraPosition` | | `[-0.62, 0.38, 0.86]` | The display faces +Z, so the camera stages there. |
 
-<img src="https://raw.githubusercontent.com/SpaceHolderdJs/react-widgets/main/docs/media/phone-fold.png" width="820" alt="The phone at fold angles 0, 60, 120 and 180 degrees">
+<img src="https://raw.githubusercontent.com/SpaceHolderdJs/react-widgets/main/docs/media/foldable-fold.png" width="820" alt="The foldable at fold angles 0, 60, 120 and 180 degrees">
 
 This model is the other shape: a handful of flat materials named for the parts
 they cover, so the two colours are an assignment rather than a texel trick.
@@ -133,6 +176,44 @@ The screen panel spans both halves. It is faded out until the fold is nearly
 flat — folded, a single panel across two wings would hang in the air between
 them.
 
+### `<PhoneReveal>`
+
+| Prop | Type | Default | |
+| --- | --- | --- | --- |
+| `bodyColor` | `string` | `'#c3c7cb'` | Chassis, back panel and chamfer. |
+| `trimColor` | `string` | `'#1b1d21'` | Rails, camera plate and the cutout around the front lens. |
+| `turnAngle` | `number` degrees | `0` | `0` faces you, `180` shows the back. Only used when `autoPlay` is `false`. |
+| `initialPosition` | | `[0, -0.34, -0.22]` | The body is 0.72 units tall. |
+| `initialRotation` | | `[16, 168, -14]` | Starts back-on, so the reveal has something to turn over. |
+| `duration` | | `4600` | |
+| `cameraPosition` | | `[0.86, 0.44, 1.42]` | The display faces +Z, so the camera stages there. |
+
+<img src="https://raw.githubusercontent.com/SpaceHolderdJs/react-widgets/main/docs/media/phone-finishes.png" width="820" alt="The phone from behind in five finishes: titanium, graphite, sand, deep blue and champagne">
+
+There is no hinge on this one, so the turn does the work the fold does on the
+foldable: it rises out of the dark back first, rolls round, and the display
+fades up as it comes square on — `facing(turnAngle)` is that fade, exported if
+you want to drive your own lighting from it.
+
+Five finishes in the current flagship idiom are exported as `PHONE_FINISHES`,
+each a `bodyColor`/`trimColor` pair:
+
+```tsx
+import { PhoneReveal, PHONE_FINISHES } from '@space_holder/react-widgets';
+
+<PhoneReveal {...PHONE_FINISHES.deepBlue} screen="/shot.webp" />
+```
+
+`titanium`, `graphite`, `sand`, `deepBlue`, `champagne` — named for what they
+look like. They are a starting set that suits this model, not any
+manufacturer's palette under another label; those names are trademarks. Any hex
+pair works, and the two colours are independent, so a light body with a light
+trim is as valid as the defaults.
+
+The optical parts — cover glass, both lenses, the flash — are deliberately left
+out of both groups. They want to stay near black whatever the finish, and
+tinting the glass turns the whole front into a coloured pane.
+
 ### Manual mode
 
 With `autoPlay={false}` nothing animates. `initialPosition`, `initialRotation`
@@ -141,7 +222,7 @@ and the hinge angle place the device and you drive them however you like:
 ```tsx
 const [fold, setFold] = useState(0);
 
-<PhoneReveal
+<FoldableReveal
   autoPlay={false}
   screen="/shot.webp"
   initialPosition={[0, 0, 0]}
@@ -151,18 +232,23 @@ const [fold, setFold] = useState(0);
 ```
 
 Drive the angle from a scroll position, a spring, or a timeline of your own.
-The laptop is the same with `lidAngle`.
+Each widget has one: `lidAngle` on the laptop, `foldAngle` on the foldable,
+`turnAngle` on the phone.
 
 ## Serving the models
 
-Each widget loads a `.glb` — 490 KB for the laptop, 490 KB for the phone. By
-default each is fetched from this package's copy on unpkg, so a component works
-with no build configuration:
+Each widget loads a `.glb` — 487 KB, 478 KB and 523 KB. By default each is
+fetched from this package's copy on unpkg, so a component works with no build
+configuration:
 
 ```
 https://unpkg.com/@space_holder/react-widgets@<version>/assets/laptop.glb
-https://unpkg.com/@space_holder/react-widgets@<version>/assets/phone.glb
+https://unpkg.com/@space_holder/react-widgets@<version>/assets/foldable.glb
+https://unpkg.com/@space_holder/react-widgets@<version>/assets/handset.glb
 ```
+
+The files are named after the hardware rather than the component, so
+`<PhoneReveal>` loads `handset.glb`.
 
 **For production, serve them yourself.** Either copy them into your public
 folder:
@@ -173,25 +259,25 @@ cp node_modules/@space_holder/react-widgets/assets/*.glb public/
 
 ```tsx
 <LaptopReveal modelUrl="/laptop.glb" />
-<PhoneReveal modelUrl="/phone.glb" />
+<FoldableReveal modelUrl="/foldable.glb" />
+<PhoneReveal modelUrl="/handset.glb" />
 ```
 
 …or let your bundler fingerprint them (Vite, webpack 5, Next):
 
 ```tsx
 import laptopUrl from '@space_holder/react-widgets/laptop.glb';
-import phoneUrl from '@space_holder/react-widgets/phone.glb';
+import foldableUrl from '@space_holder/react-widgets/foldable.glb';
+import handsetUrl from '@space_holder/react-widgets/handset.glb';
 ```
 
 To avoid a blank first frame, warm the cache before the component mounts:
 
 ```tsx
 LaptopReveal.preload('/laptop.glb');
-PhoneReveal.preload('/phone.glb');
+FoldableReveal.preload('/foldable.glb');
+PhoneReveal.preload('/handset.glb');
 ```
-
-Only the widgets you import pull in their model; nothing loads a `.glb` you
-never render.
 
 ### Using your own model
 
@@ -209,7 +295,7 @@ frame costs a rotation or two and nothing else.
 | `Lid` | A child of `LidPivot`, geometry baked closed and hinge-centred. |
 | Scale | Roughly 0.4 units wide. |
 
-**Phone** (`src/phone/geometry.ts`):
+**Foldable** (`src/foldable/geometry.ts`):
 
 | | |
 | --- | --- |
@@ -218,21 +304,35 @@ frame costs a rotation or two and nothing else.
 | `Spine` | The hinge block. Never moves. |
 | Scale | Roughly 0.78 units wide, flat open. |
 
+**Phone** (`src/phone/geometry.ts`): the least demanding of the three, because
+nothing articulates.
+
+| | |
+| --- | --- |
+| Orientation | Levelled, axis aligned, and centred on its own bounding box — so a turn spins it on the spot rather than swinging it around a point off to one side. Display faces **+Z**. |
+| Hierarchy | None required. One node holding the mesh is enough. |
+| Materials | Named for the part they cover, and grouped in `src/phone/Scene.tsx`. A textured material must not join a colour group: base colour is white on those, and brightness inside a group is relative, so it would claim the top of the range and flatten every other member. |
+| Scale | Body 0.72 units tall. |
+
 Then tell the component where the display is, by editing `SCREEN` in the same
 file — width, height and the panel's offset. Record the same numbers in the
 model's `asset.extras` so the two can be checked against each other later; both
 bundled models carry `extras.screen` and `extras.hinge` for exactly that reason.
 
-`scripts/` is not shipped, but the asset pipeline that produced `phone.glb`
-(flatten, re-pose, split the crease, strip, quantise) is worth reading if you
-are preparing a model of your own.
+`scripts/` is not shipped, but the two asset pipelines in it are worth reading
+if you are preparing a model of your own: `build-foldable-asset.py` (flatten a
+223-node hierarchy, re-pose flat, split the crease between the wings, strip,
+quantise) and `build-handset-asset.py` (level, centre, rescale, erase the
+maker's mark, shrink textures by three orders of magnitude).
 
 **Two things to check before you ship someone else's model.** First, that its
 licence allows redistribution inside an npm package *and* commercial use —
-"free to download" is not a licence. Second, that its textures carry no
-manufacturer's marks: a model of a real product almost always does, and a
-trademark is not covered by the asset's own licence however permissive that
-licence is. Both bundled models needed work on this count — see
+"free to download" is not a licence. Second, that it carries no manufacturer's
+marks: a model of a real product almost always does — in a texture, or as
+geometry, or as a shape cut out of a panel so that deleting the insert leaves
+the mark behind as a hole — and a trademark is not covered by the asset's own
+licence however permissive that licence is. All three bundled models needed
+work on this count — see
 [NOTICE](./NOTICE) for what was removed from each, and the checklist before
 adding another.
 
@@ -253,11 +353,16 @@ There is no DOM access at module scope, so it will not break a server render.
 - Device pixel ratio is capped at 1.4 below 768px wide, 1.75 above.
 - The studio is built from `Lightformer`s rather than an HDRI, so nothing is
   fetched at runtime and the component works in a fully static export.
-- The laptop is ~11.5k triangles and one material. The phone is ~19k across
-  seven materials, welded and quantised (`KHR_mesh_quantization`, which three
-  decodes natively — no Draco or meshopt decoder is fetched).
-- Materials are cloned once per name, not once per mesh, so the phone's 14
-  primitives do not become 14 materials.
+- The laptop is ~11.5k triangles and one material. The foldable is ~19k across
+  seven materials and the phone ~14k across sixteen, welded, decimated and
+  quantised (`KHR_mesh_quantization`, which three decodes natively — no Draco
+  or meshopt decoder is fetched).
+- Materials are cloned once per name, not once per mesh, so the phone's sixteen
+  primitives do not become sixteen materials per instance on the page.
+- The phone's textures were rebuilt at 64–96 px. The original carried 4 MB of
+  1024-square maps for a grille weave and a flash lens a few hundredths of a
+  unit across; they are 15 KB now and no pixel of the difference survives to
+  the screen.
 - `respectReducedMotion` skips straight to the final frame by default.
 
 ## Releasing
@@ -320,19 +425,24 @@ are CC-BY-4.0, which permits commercial use and requires attribution:
 | | |
 | --- | --- |
 | `laptop.glb` | based on "MacBook" by [Nicholas-3D](https://sketchfab.com/Nicholas01) |
-| `phone.glb` | based on "iPhone Duo 3D Model - By Pikkme Studio" by [PikkmeStudios](https://sketchfab.com/stockpikkme) |
+| `foldable.glb` | based on "iPhone Duo 3D Model - By Pikkme Studio" by [PikkmeStudios](https://sketchfab.com/stockpikkme) |
+| `handset.glb` | based on "iPhone 18 Pro Max – High Quality 3D Model" by [Pro Animator](https://sketchfab.com/Riju.mandal) |
 
 **If you ship a model, ship its credit** — including into bundled output, where
 it is easy to lose by accident. [NOTICE](./NOTICE) carries one entry per asset
 with the exact wording, the changes made to each original, and what to check
 before adding another.
 
-Neither model ships with brand identification. The laptop's maker mark was
-removed from its textures; the phone's logo meshes were deleted and the two
-screen regions of its texture — which carried a manufacturer's application
-icons, UI and wordmark, plus a stock photograph — were blanked. A CC-BY licence
-covers the modeller's own work and cannot license any of that. This project is
-not affiliated with, endorsed by, or sponsored by any hardware manufacturer.
+No model ships with brand identification. The laptop's maker mark was removed
+from its textures. The foldable's logo meshes were deleted and the two screen
+regions of its texture — which carried a manufacturer's application icons, UI
+and wordmark, plus a stock photograph — were blanked. The phone's mark was cut
+out of the back panel and filled with its own mesh, sharing every boundary
+vertex, so deleting it would have left the mark behind as a hole; its triangles
+were given the surrounding panel's material instead, which leaves one
+continuous unmarked surface. A CC-BY licence covers the modeller's own work and
+cannot license any of that. This project is not affiliated with, endorsed by,
+or sponsored by any hardware manufacturer.
 
 ## Development
 
@@ -344,11 +454,14 @@ npm --prefix example install && npm --prefix example run dev
 ```
 
 The example runs against `src/` directly, so changes show up without a build.
-It exercises every prop: both widgets, colour presets, autoplay vs manual, and
-a hinge slider. `?screen=<url>` swaps the live-HTML panel for a texture.
+It exercises every prop: all three widgets, colour presets, autoplay vs manual,
+and the hinge slider. `?screen=<url>` swaps the live-HTML panel for a texture,
+and `?widget=`, `?manual=1`, `?angle=`, `?body=` and `?trim=` drive it without
+the control panel in shot — which is how the stills below are taken.
 
-`node capture.mjs` records the sequences and `python3 makemedia.py` turns them
-into `docs/media/`. It drives the page
+`node capture.mjs` records the sequences, `python3 makemedia.py` turns them into
+`docs/media/`, and `node stills.mjs` takes the colour and angle strips. The
+capture drives the page
 with a virtual clock that only advances when asked and is frozen the rest of
 the time, so a frame is the frame that was requested however long the machine
 took to render it — the captures are reproducible rather than a sample of one

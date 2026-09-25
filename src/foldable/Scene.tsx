@@ -3,41 +3,35 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 
-import { easeInOut, easeOut, easeOutBack, lerp, span } from '../easing';
+import { easeInOut, easeOut, easeOutBack, lerp, smoothstep, span } from '../easing';
 import { Screen, type ScreenRect } from '../shared/screen';
 import { Studio, Ready } from '../shared/studio';
 import type { Progress } from '../shared/reveal';
 import { bindPalette, setPalette, type PaletteBinding, type PaletteGroup } from '../shared/palette';
-import { facing, SCREEN, SCREEN_ROTATION, TURN_FACING_DEG } from './geometry';
+import { FOLD_OPEN_DEG, SCREEN, SCREEN_ROTATION, wingRotations } from './geometry';
 
 const DEG = Math.PI / 180;
 
 /**
- * Which of the model's materials each colour prop drives.
- *
- * Deliberately absent: "glass", "lens" and "lens-front" are optical and want
- * to stay near black whatever the finish; "display-panel" sits behind our own
- * content plane; "flash" and "port-contact" are lit or plated parts that read
- * as broken when they take the body colour. "grille" is absent for a duller
- * reason — it is the only member with a texture, so its base colour is white,
- * and inside a group brightness is relative: it would claim the top of the
- * range and push every other dark part down to the floor.
+ * Which of the model's materials each colour prop drives. "glass" and
+ * "display" are deliberately absent: the glass is transmissive and the
+ * display is behind our own panel, so tinting either only muddies the screen.
  */
 const groupsFor = (body: string, trim: string): PaletteGroup[] => [
-  { materials: ['chassis', 'chassis-back', 'chassis-edge'], color: body },
-  { materials: ['trim', 'camera-plate', 'grille-frame', 'cutout', 'cutout-inner'], color: trim },
+  { materials: ['chassis', 'chassis-light', 'chassis-dark', 'frame'], color: body },
+  { materials: ['trim', 'black'], color: trim },
 ];
 
-export type PhoneSceneProps = {
+export type FoldableSceneProps = {
   progress: React.RefObject<Progress>;
   modelUrl: string;
   screen?: string | React.ReactNode;
   bodyColor: string;
-  trimColor: string;
+  screenBezelColor: string;
   initialPosition: [number, number, number];
   initialRotation: [number, number, number];
   autoPlay: boolean;
-  turnAngle: number;
+  foldAngle: number;
   cameraPosition: [number, number, number];
   background: string | null;
   onReady?: () => void;
@@ -46,10 +40,10 @@ export type PhoneSceneProps = {
 /* ---------------------------------------------------------------- camera */
 
 /**
- * Three-quarter establishing shot, then a push to dead centre of the display.
- * The final pose is derived from the screen's live world transform and the
- * current viewport aspect, so the display ends up exactly covering the
- * viewport — the same hand-off the other two widgets do.
+ * Wide three-quarter establishing shot, then a push to dead-centre of the
+ * display. The final pose is derived from the screen's live world transform
+ * and the current viewport aspect, so the display ends up exactly covering the
+ * viewport — the same hand-off the laptop does.
  */
 function CameraRig({
   progress,
@@ -64,7 +58,7 @@ function CameraRig({
 }) {
   const { camera, size } = useThree();
   const start = React.useMemo(() => new THREE.Vector3(...cameraPosition), [cameraPosition]);
-  const mid = React.useMemo(() => new THREE.Vector3(0.46, 0.14, 1.48), []);
+  const mid = React.useMemo(() => new THREE.Vector3(-0.22, 0.16, 0.92), []);
   const s = React.useMemo(
     () => ({
       pos: new THREE.Vector3(),
@@ -101,17 +95,14 @@ function CameraRig({
     const cam = camera as THREE.PerspectiveCamera;
     const halfFov = (cam.fov * DEG) / 2;
     const aspect = size.width / size.height;
-    // A portrait display in a landscape viewport is limited by its height, and
-    // by its width the other way round; taking the smaller distance of the two
-    // means the screen fills the frame without ever cropping.
     const fit = Math.min(
       SCREEN.height / (2 * Math.tan(halfFov)),
       SCREEN.width / (2 * Math.tan(halfFov) * aspect),
     );
     s.end.copy(s.normal).multiplyScalar(fit).add(s.screenPos);
 
-    const swing = easeInOut(span(t, 0.34, 0.7));
-    const push = easeInOut(span(t, 0.7, 1));
+    const swing = easeInOut(span(t, 0.36, 0.72));
+    const push = easeInOut(span(t, 0.68, 1));
 
     s.pos.copy(start).lerp(mid, swing).lerp(s.end, push);
     s.look.set(0, 0, 0).lerp(s.screenPos, Math.max(swing * 0.85, push));
@@ -124,24 +115,26 @@ function CameraRig({
   return null;
 }
 
-/* ----------------------------------------------------------------- phone */
+/* -------------------------------------------------------------- foldable */
 
-function Handset({
+function Foldable({
   progress,
   modelUrl,
   screen,
   bodyColor,
-  trimColor,
+  screenBezelColor,
   initialPosition,
   initialRotation,
   autoPlay,
-  turnAngle,
+  foldAngle,
   screenRef,
-}: Omit<PhoneSceneProps, 'cameraPosition' | 'background' | 'onReady'> & {
+}: Omit<FoldableSceneProps, 'cameraPosition' | 'background' | 'onReady'> & {
   screenRef: React.RefObject<THREE.Mesh | null>;
 }) {
   const { scene } = useGLTF(modelUrl);
   const root = React.useRef<THREE.Group>(null);
+  const wingA = React.useRef<THREE.Object3D | null>(null);
+  const wingB = React.useRef<THREE.Object3D | null>(null);
   const glow = React.useRef<THREE.PointLight>(null);
   const screenMat = React.useRef<THREE.MeshBasicMaterial>(null);
   const htmlRef = React.useRef<HTMLDivElement>(null);
@@ -160,25 +153,19 @@ function Handset({
       let material = seen.get(source.name);
       if (!material) {
         material = source.clone();
-        // Most of this model is authored at full metalness, where the base
-        // colour contributes almost nothing and the body is whatever the
-        // environment happens to reflect — in a dark studio, near black. That
-        // would make bodyColor a prop that does nothing. Backing the metalness
-        // off and lifting the environment lets the colour read while the
-        // chassis still looks like metal rather than plastic.
-        material.metalness = Math.min(material.metalness ?? 0.5, 0.5);
-        // Most of the body is authored glossy as well as metallic, and a
-        // glossy metal in a dark studio is a mirror: it shows the room, which
-        // here is mostly unlit. Roughening it scatters the few lights there
-        // are across the whole panel, which is what makes the finish legible
-        // as a colour rather than as two highlights on black.
-        material.roughness = Math.max(material.roughness ?? 0.5, 0.42);
-        material.envMapIntensity = 2.4;
+        // The source is authored near mirror-polished. At metalness 0.97 the
+        // base colour contributes almost nothing — the body is whatever the
+        // environment happens to reflect, which in a dark studio is close to
+        // black — so bodyColor would be a prop that does nothing. Backing the
+        // metalness off and lifting the environment lets the colour read while
+        // the chassis still looks like metal rather than plastic.
+        material.metalness = Math.min(material.metalness ?? 0.5, 0.62);
+        material.envMapIntensity = 2.1;
         seen.set(source.name, material);
       }
       mesh.material = material;
     });
-    palette.current = bindPalette([...seen.values()], groupsFor(bodyColor, trimColor));
+    palette.current = bindPalette([...seen.values()], groupsFor(bodyColor, screenBezelColor));
     return body;
     // Colours are applied through the bindings below, so changing them must
     // not rebuild the scene graph.
@@ -186,13 +173,18 @@ function Handset({
   }, [scene]);
 
   React.useEffect(() => {
-    setPalette(palette.current, groupsFor(bodyColor, trimColor));
-  }, [bodyColor, trimColor]);
+    wingA.current = model.getObjectByName('WingA') ?? null;
+    wingB.current = model.getObjectByName('WingB') ?? null;
+  }, [model]);
 
-  const light = (amount: number) => {
-    if (screenMat.current) screenMat.current.opacity = Math.max(amount, 0.001);
-    if (htmlRef.current) htmlRef.current.style.opacity = String(amount);
-    if (glow.current) glow.current.intensity = amount * 1.2;
+  React.useEffect(() => {
+    setPalette(palette.current, groupsFor(bodyColor, screenBezelColor));
+  }, [bodyColor, screenBezelColor]);
+
+  const setFold = (deg: number) => {
+    const [a, b] = wingRotations(deg);
+    if (wingA.current) wingA.current.rotation.y = a;
+    if (wingB.current) wingB.current.rotation.y = b;
   };
 
   useFrame(() => {
@@ -201,40 +193,48 @@ function Handset({
         root.current.position.set(...initialPosition);
         root.current.rotation.set(
           initialRotation[0] * DEG,
-          turnAngle * DEG,
+          initialRotation[1] * DEG,
           initialRotation[2] * DEG,
         );
       }
-      light(facing(turnAngle));
+      setFold(foldAngle);
+      // The panel spans both halves, so it only makes sense while they are
+      // roughly coplanar. Folded, it would hang in the air between them.
+      const flat = smoothstep(foldAngle, 148, 178);
+      if (screenMat.current) screenMat.current.opacity = Math.max(flat, 0.001);
+      if (htmlRef.current) htmlRef.current.style.opacity = String(flat);
+      if (glow.current) glow.current.intensity = 1.2 * flat;
       return;
     }
 
     const t = progress.current.t;
 
-    // 1. It rises out of the dark, back towards the viewer, and turns over.
-    //    The turn runs long and finishes last: it is the move, and the drop is
-    //    only there to give it somewhere to arrive.
-    const rise = easeOutBack(span(t, 0, 0.42));
-    const settle = easeOut(span(t, 0.08, 0.52));
-    const turn = easeInOut(span(t, 0.12, 0.64));
-    const square = easeInOut(span(t, 0.6, 0.95));
-    const deg = lerp(lerp(initialRotation[1], -16, turn), turnAngle, square);
-
+    // 1. The shut phone tumbles up out of the dark and settles.
     if (root.current) {
+      const drop = easeOutBack(span(t, 0, 0.36));
+      const settle = easeOut(span(t, 0.1, 0.5));
+      const square = easeInOut(span(t, 0.6, 0.94));
       root.current.position.set(
-        lerp(initialPosition[0], 0, rise),
-        lerp(initialPosition[1], 0, rise),
-        lerp(initialPosition[2], 0, rise),
+        lerp(initialPosition[0], 0, drop),
+        lerp(initialPosition[1], 0, drop),
+        lerp(initialPosition[2], 0, drop),
       );
-      root.current.rotation.x = lerp(initialRotation[0] * DEG, 0, settle);
-      root.current.rotation.y = deg * DEG;
-      root.current.rotation.z = lerp(initialRotation[2] * DEG, 0, settle);
+      root.current.rotation.x = lerp(initialRotation[0] * DEG, 0, drop);
+      root.current.rotation.y = lerp(lerp(initialRotation[1] * DEG, -0.28, settle), 0, square);
+      root.current.rotation.z = lerp(initialRotation[2] * DEG, 0, drop);
     }
 
-    // 2. The display wakes once the phone is round far enough to show it, then
-    //    goes to full brightness for the hand-off to the camera.
-    const wake = span(t, 0.4, 0.78) * facing(deg);
-    light(wake + span(t, 0.86, 1) * 0.2 * facing(deg));
+    // 2. It unfolds.
+    const fold = lerp(12, foldAngle, easeInOut(span(t, 0.28, 0.66)));
+    setFold(fold);
+    const flat = smoothstep(fold, 148, 178);
+
+    // 3. The panel wakes once the fold is far enough along that the display is
+    //    actually facing out, then goes to full brightness for the hand-off.
+    const wake = span(t, 0.46, 0.8) * flat;
+    if (screenMat.current) screenMat.current.opacity = Math.max(wake, 0.001);
+    if (htmlRef.current) htmlRef.current.style.opacity = String(wake);
+    if (glow.current) glow.current.intensity = wake * 0.4 + span(t, 0.84, 1) * 0.8;
   });
 
   const rect: ScreenRect = {
@@ -248,8 +248,9 @@ function Handset({
     <group ref={root} dispose={null}>
       <primitive object={model} />
 
-      {/* Edge to edge: the panel covers the display area exactly, which on
-          this model runs to within a couple of millimetres of the rails. */}
+      {/* One plane across both halves. The two wings are coplanar when flat,
+          so a single panel is geometrically right; while the phone is still
+          folding it is faded out, which is also when it would clip. */}
       <Screen
         screen={screen}
         rect={rect}
@@ -260,8 +261,8 @@ function Handset({
 
       <pointLight
         ref={glow}
-        position={[SCREEN.x, SCREEN.y, SCREEN.z + 0.1]}
-        distance={0.9}
+        position={[SCREEN.x, SCREEN.y, SCREEN.z + 0.12]}
+        distance={1.1}
         decay={2}
         intensity={0}
         color="#cfe8ff"
@@ -270,35 +271,35 @@ function Handset({
   );
 }
 
-export default function PhoneScene({
+export default function FoldableScene({
   progress,
   modelUrl,
   screen,
   bodyColor,
-  trimColor,
+  screenBezelColor,
   initialPosition,
   initialRotation,
   autoPlay,
-  turnAngle = TURN_FACING_DEG,
+  foldAngle = FOLD_OPEN_DEG,
   cameraPosition,
   background,
   onReady,
-}: PhoneSceneProps) {
+}: FoldableSceneProps) {
   const screenRef = React.useRef<THREE.Mesh | null>(null);
 
   return (
     <>
-      <Studio background={background} intensity={2.35} fog={[2.1, 5.4]} />
-      <Handset
+      <Studio background={background} intensity={1.9} />
+      <Foldable
         progress={progress}
         modelUrl={modelUrl}
         screen={screen}
         bodyColor={bodyColor}
-        trimColor={trimColor}
+        screenBezelColor={screenBezelColor}
         initialPosition={initialPosition}
         initialRotation={initialRotation}
         autoPlay={autoPlay}
-        turnAngle={turnAngle}
+        foldAngle={foldAngle}
         screenRef={screenRef}
       />
       <CameraRig

@@ -5,48 +5,33 @@ import { Canvas } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 
 import Scene from './Scene';
-import { TURN_FACING_DEG } from './geometry';
+import { FOLD_OPEN_DEG } from './geometry';
 import { useReveal } from '../shared/reveal';
 import { tuneRenderer, useDpr } from '../shared/studio';
-import type { PhoneRevealProps } from '../types';
+import type { FoldableRevealProps } from '../types';
 
 /** Where this package's own copy of the model is served from by default. */
-export const DEFAULT_HANDSET_MODEL_URL = `https://unpkg.com/${__PKG_NAME__}@${__PKG_VERSION__}/assets/handset.glb`;
-
-/**
- * Finishes in the current flagship idiom: brushed light metal, near black,
- * warm sand, deep blue, and a pale gold. Named for what they look like —
- * a manufacturer's colour names are trademarks, and these are not those
- * colours under another label, just a starting set that suits the model.
- */
-export const PHONE_FINISHES = {
-  titanium: { bodyColor: '#c3c7cb', trimColor: '#1b1d21' },
-  graphite: { bodyColor: '#4b4e54', trimColor: '#121316' },
-  sand: { bodyColor: '#cdb190', trimColor: '#2b2319' },
-  deepBlue: { bodyColor: '#3f5a7d', trimColor: '#10151d' },
-  champagne: { bodyColor: '#dcc79c', trimColor: '#2a2418' },
-} as const;
+export const DEFAULT_FOLDABLE_MODEL_URL = `https://unpkg.com/${__PKG_NAME__}@${__PKG_VERSION__}/assets/foldable.glb`;
 
 const DEFAULTS = {
-  initialPosition: [0, -0.34, -0.22] as [number, number, number],
-  initialRotation: [16, 168, -14] as [number, number, number],
-  bodyColor: PHONE_FINISHES.titanium.bodyColor,
-  trimColor: PHONE_FINISHES.titanium.trimColor,
-  duration: 4600,
-  cameraPosition: [0.86, 0.44, 1.42] as [number, number, number],
+  initialPosition: [0, -0.38, 0] as [number, number, number],
+  initialRotation: [-54, -72, 16] as [number, number, number],
+  bodyColor: '#c6cad0',
+  trimColor: '#15171a',
+  duration: 5000,
+  cameraPosition: [-0.62, 0.38, 0.86] as [number, number, number],
   fov: 38,
   background: '#04050a',
 };
 
 /**
- * A phone that turns over to show you its screen.
+ * A book-fold phone that opens itself.
  *
- * It rises out of the dark back first, rolls round, the display wakes as it
- * comes square on, and the camera pushes in until the screen exactly covers
- * the frame — the same language as <LaptopReveal> and <FoldableReveal>, with
- * the turn standing in for the hinge.
+ * It tumbles in shut, unfolds to flat, the display wakes, and the camera
+ * pushes in until the screen exactly covers the frame — the same language as
+ * <LaptopReveal>, turned on its side.
  */
-export default function PhoneReveal({
+export default function FoldableReveal({
   screen,
   initialPosition = DEFAULTS.initialPosition,
   initialRotation = DEFAULTS.initialRotation,
@@ -54,17 +39,17 @@ export default function PhoneReveal({
   trimColor = DEFAULTS.trimColor,
   autoPlay = true,
   duration = DEFAULTS.duration,
-  turnAngle = TURN_FACING_DEG,
+  foldAngle = FOLD_OPEN_DEG,
   cameraPosition = DEFAULTS.cameraPosition,
   fov = DEFAULTS.fov,
   background = DEFAULTS.background,
-  modelUrl = DEFAULT_HANDSET_MODEL_URL,
+  modelUrl = DEFAULT_FOLDABLE_MODEL_URL,
   onReady,
   onComplete,
   respectReducedMotion = true,
   className,
   style,
-}: PhoneRevealProps) {
+}: FoldableRevealProps) {
   // The timeline starts when the model and screen content have resolved, not
   // when the component mounts. Otherwise a cold load spends the reveal on a
   // download and the visitor arrives at the final frame.
@@ -96,11 +81,11 @@ export default function PhoneReveal({
           modelUrl={modelUrl}
           screen={screen}
           bodyColor={bodyColor}
-          trimColor={trimColor}
+          screenBezelColor={trimColor}
           initialPosition={initialPosition}
           initialRotation={initialRotation}
           autoPlay={autoPlay}
-          turnAngle={turnAngle}
+          foldAngle={foldAngle}
           cameraPosition={cameraPosition}
           background={background}
           onReady={handleReady}
@@ -111,6 +96,6 @@ export default function PhoneReveal({
 }
 
 /** Warms the model cache — call it before the component mounts. */
-PhoneReveal.preload = (modelUrl: string = DEFAULT_HANDSET_MODEL_URL) => {
+FoldableReveal.preload = (modelUrl: string = DEFAULT_FOLDABLE_MODEL_URL) => {
   useGLTF.preload(modelUrl);
 };

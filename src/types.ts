@@ -93,7 +93,7 @@ export interface LaptopRevealProps extends RevealProps {
   cameraPosition?: [number, number, number];
 }
 
-export interface PhoneRevealProps extends RevealProps {
+export interface FoldableRevealProps extends RevealProps {
   /** @default [0, -0.38, 0] */
   initialPosition?: [number, number, number];
   /** @default [-54, -72, 16] */
@@ -111,5 +111,30 @@ export interface PhoneRevealProps extends RevealProps {
   /** @default 5000 */
   duration?: number;
   /** @default [-0.62, 0.38, 0.86] */
+  cameraPosition?: [number, number, number];
+}
+
+export interface PhoneRevealProps extends RevealProps {
+  /** @default [0, -0.34, -0.22] */
+  initialPosition?: [number, number, number];
+  /**
+   * Starts back-on by default, so the reveal has something to turn over.
+   * @default [16, 168, -14]
+   */
+  initialRotation?: [number, number, number];
+  /** Chassis, back panel and chamfer. @default '#c3c7cb' */
+  bodyColor?: string;
+  /** Rails, camera plate and the cutout around the front lens. @default '#1b1d21' */
+  trimColor?: string;
+  /**
+   * How far the phone is turned about its own vertical axis, in degrees: 0
+   * faces the viewer, 180 shows the back, and the display fades out as it
+   * goes round. Only used when `autoPlay` is false.
+   * @default 0
+   */
+  turnAngle?: number;
+  /** @default 4600 */
+  duration?: number;
+  /** @default [0.86, 0.44, 1.42] */
   cameraPosition?: [number, number, number];
 }
