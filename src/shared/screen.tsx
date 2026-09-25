@@ -281,12 +281,18 @@ export function HtmlScreen({
     // device and wants its perspective, and a square-on panel that is small on
     // screen is still a device too. Only when it is both does a flat copy read
     // as the same picture.
-    // A panel with no flat copy to hand off to keeps its perspective all the
-    // way in — the widget is responsible for rendering <FlatScreen> if it
-    // wants the hand-off.
-    const flat = flatHandle
-      ? smoothstep(coverage, 0.6, 0.86) * smoothstep(squareness, 0.965, 0.995)
-      : 0;
+    const frame = flatHandle?.frame.current;
+    const content = flatHandle?.content.current;
+
+    // Only fade the perspective layer out if there is something mounted to
+    // fade into. A widget may legitimately render no <FlatScreen>, and a
+    // hand-off to a copy that is not there would dim the screen to nothing —
+    // which is worse than the parallax it exists to avoid, and looks for all
+    // the world like a dead display.
+    const flat =
+      frame && content
+        ? smoothstep(coverage, 0.6, 0.86) * smoothstep(squareness, 0.965, 0.995)
+        : 0;
 
     if (matRef.current) matRef.current.opacity = Math.max(lit, 0.001);
 
@@ -294,8 +300,6 @@ export function HtmlScreen({
       projectedLayer.current.style.opacity = String(lit * (1 - flat));
     }
 
-    const frame = flatHandle?.frame.current;
-    const content = flatHandle?.content.current;
     if (frame && content) {
       const showing = lit * flat > 0.001;
       frame.style.display = showing ? 'block' : 'none';
