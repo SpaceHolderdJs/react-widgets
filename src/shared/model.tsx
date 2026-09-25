@@ -20,6 +20,10 @@ import * as React from 'react';
 export const cdnModelUrl = (file: string) =>
   `https://cdn.jsdelivr.net/npm/${__PKG_NAME__}@${__PKG_VERSION__}/assets/${file}`;
 
+/** Is this one of our own CDN URLs, rather than something the caller passed? */
+const isPackagedDefault = (url: string) =>
+  url.startsWith(`https://cdn.jsdelivr.net/npm/${__PKG_NAME__}@${__PKG_VERSION__}/assets/`);
+
 type Props = {
   children: React.ReactNode;
   modelUrl: string;
@@ -44,11 +48,22 @@ export class ModelBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
+    // The likeliest reason the packaged default 404s is not a CDN outage: it
+    // is a build of this package that has not been published. The URL carries
+    // the package's own version, so a local or prerelease build points at a
+    // version npm has never seen, and jsDelivr can only mirror what is there.
+    // Worth saying outright — it is otherwise a black canvas and a guess.
+    const hint = isPackagedDefault(this.props.modelUrl)
+      ? ` This is the packaged default, which is built from this package's own version (${__PKG_VERSION__}). ` +
+        'If you are running a local or unpublished build, that version is not on npm yet and the CDN has ' +
+        'nothing to serve — point modelUrl at your own copy (the files are in the package under assets/). ' +
+        'Otherwise the CDN did not serve it, and you should be serving it yourself in production anyway.'
+      : '';
+
     // eslint-disable-next-line no-console
     console.error(
       `[react-widgets] the model at ${this.props.modelUrl} could not be loaded, ` +
-        'so nothing will be rendered. If that is the packaged default it means the CDN ' +
-        'did not serve it; pass modelUrl and serve the file yourself.',
+        `so nothing will be rendered.${hint}`,
       error,
     );
     this.props.onError?.(error);
