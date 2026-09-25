@@ -8,7 +8,7 @@ import { Screen, type ScreenRect } from '../shared/screen';
 import { Studio, Ready } from '../shared/studio';
 import type { Progress } from '../shared/reveal';
 import { bindPalette, setPalette, type PaletteBinding, type PaletteGroup } from '../shared/palette';
-import { FOLD_OPEN_DEG, SCREEN, SCREEN_ROTATION, wingRotations } from './geometry';
+import { FOLD_OPEN_DEG, MODEL_YAW, SCREEN, SCREEN_ROTATION, wingRotations } from './geometry';
 
 const DEG = Math.PI / 180;
 
@@ -246,7 +246,11 @@ function Foldable({
 
   return (
     <group ref={root} dispose={null}>
-      <primitive object={model} />
+      {/* The asset is baked back to front; this is the half turn that puts its
+          display on +Z. See MODEL_YAW. */}
+      <group rotation={[0, MODEL_YAW, 0]}>
+        <primitive object={model} />
+      </group>
 
       {/* One plane across both halves. The two wings are coplanar when flat,
           so a single panel is geometrically right; while the phone is still
