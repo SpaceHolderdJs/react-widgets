@@ -15,6 +15,6 @@ export default defineConfig({
   },
   define: {
     __PKG_NAME__: JSON.stringify('@space_holder/react-widgets'),
-    __PKG_VERSION__: JSON.stringify('0.2.3'),
+    __PKG_VERSION__: JSON.stringify('0.2.4'),
   },
 });

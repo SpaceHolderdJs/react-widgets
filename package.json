@@ -1,6 +1,6 @@
 {
   "name": "@space_holder/react-widgets",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "3D device reveals for React: a laptop that opens itself, a book-fold phone that unfolds and a phone that turns over, with your page on the screen.",
   "keywords": [
     "react",

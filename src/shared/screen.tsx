@@ -285,24 +285,36 @@ export function HtmlScreen({
     const frame = flatHandle?.frame.current;
     const content = flatHandle?.content.current;
 
-    // A switch, not a cross-fade.
+    // A switch, not a cross-fade, and driven by measurement rather than by a
+    // guess at when the projection gives out.
     //
-    // Fading between the two put both on screen at once, and by the time the
-    // fade had started the perspective layer was already coming unstuck — so
-    // what you saw was a sharp panel on the device with a large ghost of
-    // itself sliding off to one side. There is no window in which blending
-    // them is right, because the whole reason to hand over is that one of them
-    // has stopped being trustworthy.
+    // drei's CSS perspective is `projectionMatrix[5] * height/2` PIXELS, while
+    // the object sits a fraction of a WORLD UNIT away — so the magnification
+    // is roughly that pixel figure divided by the distance, and it therefore
+    // scales with the height of the canvas. A tall canvas blows up sooner and
+    // harder than a short one. No fixed coverage or angle threshold can
+    // describe that; it has to be measured.
     //
-    // They draw the same content at the same projected rectangle once the
-    // display is square on and large in frame, so swapping outright is
-    // invisible. The thresholds sit well before the projection degenerates,
-    // and are split going in and coming out so a camera hovering near the
-    // boundary cannot flap between them.
+    // So: compare what the browser actually rendered the layer as against the
+    // rectangle the display truly projects to. While they agree, the
+    // perspective layer is telling the truth and draws the screen. Once they
+    // diverge it has come unstuck, and the flat copy takes over — placed on
+    // that same true rectangle, so the swap lands where the panel should have
+    // been all along.
+    //
+    // A plane square on to the camera also hands over, whatever its size: at
+    // that angle the flat copy is not an approximation, it is the same image.
+    const el = projectedLayer.current;
+    let drift = 0;
+    if (el && el.style.display !== 'none' && width > 1) {
+      // Already laid out this frame; reading it back costs no extra work.
+      drift = Math.abs(el.getBoundingClientRect().width - width) / width;
+    }
+
     if (frame && content) {
       handedOff.current = handedOff.current
-        ? coverage > 0.42 && squareness > 0.88
-        : coverage > 0.52 && squareness > 0.93;
+        ? squareness > 0.985 || coverage > 0.4 || drift > 0.04
+        : squareness > 0.995 || drift > 0.08;
     } else {
       handedOff.current = false;
     }
