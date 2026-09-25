@@ -5,12 +5,14 @@ import { useGLTF } from '@react-three/drei';
 
 import { SCREEN, SCREEN_ROTATION } from './geometry';
 import { easeInOut, easeOut, easeOutBack, lerp, span } from '../easing';
-import { Screen } from '../shared/screen';
+import { Screen, type FlatHandle } from '../shared/screen';
 import { Studio, Ready } from '../shared/studio';
 import type { Progress } from '../shared/reveal';
 import { applyTint, setTint, type TintUniforms } from '../tint';
 
 export type LaptopSceneProps = {
+  /** Where the flat hand-off copy lives; see <FlatScreen>. */
+  flat?: FlatHandle;
   progress: React.RefObject<Progress>;
   modelUrl: string;
   screen?: string | React.ReactNode;
@@ -124,6 +126,7 @@ function Laptop({
   autoPlay,
   lidAngle,
   screenRef,
+  flat,
 }: {
   progress: React.RefObject<Progress>;
   modelUrl: string;
@@ -135,6 +138,7 @@ function Laptop({
   autoPlay: boolean;
   lidAngle: number;
   screenRef: React.RefObject<THREE.Mesh | null>;
+  flat?: FlatHandle;
 }) {
   const { scene } = useGLTF(modelUrl);
   const root = React.useRef<THREE.Group>(null);
@@ -252,6 +256,7 @@ function Laptop({
           }}
           meshRef={screenRef}
           opacity={lit}
+          flat={flat}
         />
 
         {/* Backlight spill, so the open lid actually lights the keyboard. */}
@@ -283,6 +288,7 @@ export default function Scene({
   cameraPosition,
   background,
   onReady,
+  flat,
 }: LaptopSceneProps) {
   const screenRef = React.useRef<THREE.Mesh | null>(null);
 
@@ -301,6 +307,7 @@ export default function Scene({
         autoPlay={autoPlay}
         lidAngle={lidAngle}
         screenRef={screenRef}
+        flat={flat}
       />
       <CameraRig
         progress={progress}

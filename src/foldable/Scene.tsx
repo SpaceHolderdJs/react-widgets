@@ -4,7 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 
 import { easeInOut, easeOut, easeOutBack, lerp, smoothstep, span } from '../easing';
-import { Screen, type ScreenRect } from '../shared/screen';
+import { Screen, type FlatHandle, type ScreenRect } from '../shared/screen';
 import { Studio, Ready } from '../shared/studio';
 import type { Progress } from '../shared/reveal';
 import { bindPalette, setPalette, type PaletteBinding, type PaletteGroup } from '../shared/palette';
@@ -23,6 +23,8 @@ const groupsFor = (body: string, trim: string): PaletteGroup[] => [
 ];
 
 export type FoldableSceneProps = {
+  /** Where the flat hand-off copy lives; see <FlatScreen>. */
+  flat?: FlatHandle;
   progress: React.RefObject<Progress>;
   modelUrl: string;
   screen?: string | React.ReactNode;
@@ -128,6 +130,7 @@ function Foldable({
   autoPlay,
   foldAngle,
   screenRef,
+  flat,
 }: Omit<FoldableSceneProps, 'cameraPosition' | 'background' | 'onReady'> & {
   screenRef: React.RefObject<THREE.Mesh | null>;
 }) {
@@ -202,9 +205,9 @@ function Foldable({
       setFold(foldAngle);
       // The panel spans both halves, so it only makes sense while they are
       // roughly coplanar. Folded, it would hang in the air between them.
-      const flat = smoothstep(foldAngle, 148, 178);
-      lit.current = flat;
-      if (glow.current) glow.current.intensity = 1.2 * flat;
+      const coplanar = smoothstep(foldAngle, 148, 178);
+      lit.current = coplanar;
+      if (glow.current) glow.current.intensity = 1.2 * coplanar;
       return;
     }
 
@@ -228,11 +231,11 @@ function Foldable({
     // 2. It unfolds.
     const fold = lerp(12, foldAngle, easeInOut(span(t, 0.28, 0.66)));
     setFold(fold);
-    const flat = smoothstep(fold, 148, 178);
+    const coplanar = smoothstep(fold, 148, 178);
 
     // 3. The panel wakes once the fold is far enough along that the display is
     //    actually facing out, then goes to full brightness for the hand-off.
-    const wake = span(t, 0.46, 0.8) * flat;
+    const wake = span(t, 0.46, 0.8) * coplanar;
     lit.current = wake;
     if (glow.current) glow.current.intensity = wake * 0.4 + span(t, 0.84, 1) * 0.8;
   });
@@ -255,7 +258,7 @@ function Foldable({
       {/* One plane across both halves. The two wings are coplanar when flat,
           so a single panel is geometrically right; while the phone is still
           folding it is faded out, which is also when it would clip. */}
-      <Screen screen={screen} rect={rect} meshRef={screenRef} opacity={lit} />
+      <Screen screen={screen} rect={rect} meshRef={screenRef} opacity={lit} flat={flat} />
 
       <pointLight
         ref={glow}
@@ -282,6 +285,7 @@ export default function FoldableScene({
   cameraPosition,
   background,
   onReady,
+  flat,
 }: FoldableSceneProps) {
   const screenRef = React.useRef<THREE.Mesh | null>(null);
 
@@ -299,6 +303,7 @@ export default function FoldableScene({
         autoPlay={autoPlay}
         foldAngle={foldAngle}
         screenRef={screenRef}
+        flat={flat}
       />
       <CameraRig
         progress={progress}

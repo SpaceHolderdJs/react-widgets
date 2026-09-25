@@ -4,7 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 
 import { easeInOut, easeOut, easeOutBack, lerp, span } from '../easing';
-import { Screen, type ScreenRect } from '../shared/screen';
+import { Screen, type FlatHandle, type ScreenRect } from '../shared/screen';
 import { Studio, Ready } from '../shared/studio';
 import type { Progress } from '../shared/reveal';
 import { bindPalette, setPalette, type PaletteBinding, type PaletteGroup } from '../shared/palette';
@@ -29,6 +29,8 @@ const groupsFor = (body: string, trim: string): PaletteGroup[] => [
 ];
 
 export type PhoneSceneProps = {
+  /** Where the flat hand-off copy lives; see <FlatScreen>. */
+  flat?: FlatHandle;
   progress: React.RefObject<Progress>;
   modelUrl: string;
   screen?: string | React.ReactNode;
@@ -137,6 +139,7 @@ function Handset({
   autoPlay,
   turnAngle,
   screenRef,
+  flat,
 }: Omit<PhoneSceneProps, 'cameraPosition' | 'background' | 'onReady'> & {
   screenRef: React.RefObject<THREE.Mesh | null>;
 }) {
@@ -251,7 +254,7 @@ function Handset({
 
       {/* Edge to edge: the panel covers the display area exactly, which on
           this model runs to within a couple of millimetres of the rails. */}
-      <Screen screen={screen} rect={rect} meshRef={screenRef} opacity={lit} />
+      <Screen screen={screen} rect={rect} meshRef={screenRef} opacity={lit} flat={flat} />
 
       <pointLight
         ref={glow}
@@ -278,6 +281,7 @@ export default function PhoneScene({
   cameraPosition,
   background,
   onReady,
+  flat,
 }: PhoneSceneProps) {
   const screenRef = React.useRef<THREE.Mesh | null>(null);
 
@@ -295,6 +299,7 @@ export default function PhoneScene({
         autoPlay={autoPlay}
         turnAngle={turnAngle}
         screenRef={screenRef}
+        flat={flat}
       />
       <CameraRig
         progress={progress}

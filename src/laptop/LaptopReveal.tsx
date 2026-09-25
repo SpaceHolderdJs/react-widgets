@@ -5,9 +5,10 @@ import { Canvas } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 
 import Scene from './Scene';
-import { LID_OPEN_DEG } from './geometry';
+import { LID_OPEN_DEG, SCREEN } from './geometry';
 import { useReveal } from '../shared/reveal';
 import { tuneRenderer, useDpr } from '../shared/studio';
+import { FlatScreen, useFlatHandle } from '../shared/screen';
 import { cdnModelUrl, ModelBoundary } from '../shared/model';
 import type { LaptopRevealProps } from '../types';
 
@@ -68,11 +69,17 @@ export default function LaptopReveal({
   }, []);
 
   const dpr = useDpr();
+  // The flat copy the reveal hands off to. It is a DOM sibling of the
+  // canvas rather than a layer inside the scene — see <FlatScreen>.
+  const flat = useFlatHandle();
 
   return (
-    <Canvas
+    <div
       className={className}
-      style={{ width: '100%', height: '100%', display: 'block', ...style }}
+      style={{ position: 'relative', width: '100%', height: '100%', ...style }}
+    >
+    <Canvas
+      style={{ width: '100%', height: '100%', display: 'block' }}
       camera={{ position: cameraPosition, fov, near: 0.01, far: 24 }}
       dpr={dpr}
       gl={{ antialias: true, alpha: background === null, powerPreference: 'high-performance' }}
@@ -93,10 +100,18 @@ export default function LaptopReveal({
           cameraPosition={cameraPosition}
           background={background}
           onReady={handleReady}
+          flat={flat}
         />
         </React.Suspense>
       </ModelBoundary>
     </Canvas>
+
+      {typeof screen === 'string' ? null : (
+        <FlatScreen handle={flat} aspect={SCREEN.width / SCREEN.height}>
+          {screen}
+        </FlatScreen>
+      )}
+    </div>
   );
 }
 

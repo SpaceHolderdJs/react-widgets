@@ -40,6 +40,76 @@ export type ScreenRect = {
  */
 export type ScreenOpacity = React.RefObject<number>;
 
+/**
+ * The flat copy of the screen.
+ *
+ * It is a 2D overlay on the canvas, not an object in the scene, so it is
+ * rendered as an ordinary DOM sibling of the <Canvas> rather than through
+ * drei's Html. That is not tidiness: Html mounts its own ReactDOM root, and
+ * two of them per widget raced each other on unmount — React's "attempted to
+ * synchronously unmount a root while React was already rendering", loudest
+ * under StrictMode on a machine fast enough to interleave them.
+ *
+ * The scene writes to these refs every frame; nothing here re-renders.
+ */
+export type FlatHandle = {
+  frame: React.RefObject<HTMLDivElement | null>;
+  content: React.RefObject<HTMLDivElement | null>;
+};
+
+export function useFlatHandle(): FlatHandle {
+  const frame = React.useRef<HTMLDivElement>(null);
+  const content = React.useRef<HTMLDivElement>(null);
+  return React.useMemo(() => ({ frame, content }), [frame, content]);
+}
+
+/**
+ * Rendered next to the <Canvas>, inside the wrapper the widget provides. It
+ * starts hidden and stays hidden unless the camera pushes far enough in for
+ * the hand-off.
+ */
+export function FlatScreen({
+  handle,
+  aspect,
+  children,
+}: {
+  handle: FlatHandle;
+  /** width / height of the display, so the content is authored to match. */
+  aspect: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      ref={handle.frame}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        display: 'none',
+        overflow: 'hidden',
+        background: '#05070c',
+        pointerEvents: 'none',
+        willChange: 'transform, width, height, opacity',
+      }}
+    >
+      <div
+        ref={handle.content}
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          width: SCREEN_PX,
+          height: Math.round(SCREEN_PX / aspect),
+          transformOrigin: 'center',
+          transform: 'translate(-50%, -50%)',
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function TextureScreen({
   src,
   rect,
@@ -112,7 +182,9 @@ type Projection = {
   coverage: number;
   /** 1 when the display faces the camera dead on. */
   squareness: number;
-  /** The display's projected rectangle, in CSS pixels. */
+  /** The display's projected rectangle, in CSS pixels, relative to the canvas. */
+  x: number;
+  y: number;
   width: number;
   height: number;
 };
@@ -175,6 +247,9 @@ function useProjection(
     onFrame({
       coverage: Math.min(spanX, spanY) / 2,
       squareness: Math.abs(scratch.normal.dot(scratch.forward)),
+      // NDC -1 → 1 with y up, to CSS pixels from the canvas's top left.
+      x: ((minX + maxX) / 2 + 1) * 0.5 * size.width,
+      y: (1 - ((minY + maxY) / 2 + 1) * 0.5) * size.height,
       width: (spanX / 2) * size.width,
       height: (spanY / 2) * size.height,
     });
@@ -186,27 +261,32 @@ export function HtmlScreen({
   rect,
   meshRef,
   opacity,
+  flat: flatHandle,
 }: {
   children: React.ReactNode;
   rect: ScreenRect;
   meshRef: React.RefObject<THREE.Mesh | null>;
   opacity: ScreenOpacity;
+  flat?: FlatHandle;
 }) {
   const contentHeight = Math.round(SCREEN_PX / (rect.width / rect.height));
 
   const matRef = React.useRef<THREE.MeshBasicMaterial>(null);
   const projectedLayer = React.useRef<HTMLDivElement>(null);
-  const flatFrame = React.useRef<HTMLDivElement>(null);
-  const flatContent = React.useRef<HTMLDivElement>(null);
 
-  useProjection(meshRef, rect, ({ coverage, squareness, width, height }) => {
+  useProjection(meshRef, rect, ({ coverage, squareness, x, y, width, height }) => {
     const lit = opacity.current ?? 0;
 
     // Both conditions, multiplied: a big panel seen at an angle is still a
     // device and wants its perspective, and a square-on panel that is small on
     // screen is still a device too. Only when it is both does a flat copy read
     // as the same picture.
-    const flat = smoothstep(coverage, 0.6, 0.86) * smoothstep(squareness, 0.965, 0.995);
+    // A panel with no flat copy to hand off to keeps its perspective all the
+    // way in — the widget is responsible for rendering <FlatScreen> if it
+    // wants the hand-off.
+    const flat = flatHandle
+      ? smoothstep(coverage, 0.6, 0.86) * smoothstep(squareness, 0.965, 0.995)
+      : 0;
 
     if (matRef.current) matRef.current.opacity = Math.max(lit, 0.001);
 
@@ -214,18 +294,23 @@ export function HtmlScreen({
       projectedLayer.current.style.opacity = String(lit * (1 - flat));
     }
 
-    const frame = flatFrame.current;
-    const content = flatContent.current;
+    const frame = flatHandle?.frame.current;
+    const content = flatHandle?.content.current;
     if (frame && content) {
       const showing = lit * flat > 0.001;
       frame.style.display = showing ? 'block' : 'none';
       if (showing) {
-        frame.style.width = `${Math.round(width)}px`;
-        frame.style.height = `${Math.round(height)}px`;
+        const w = Math.round(width);
+        const h = Math.round(height);
+        frame.style.width = `${w}px`;
+        frame.style.height = `${h}px`;
+        // Placed from the display's own projected rectangle, so it lands
+        // exactly where the perspective layer was.
+        frame.style.transform = `translate(${Math.round(x) - w / 2}px, ${Math.round(y) - h / 2}px)`;
         frame.style.opacity = String(lit * flat);
         // Cover, not contain: the display covers the viewport at the hand-off,
         // cropping on whichever axis is not the limiting one.
-        const scale = Math.max(width / SCREEN_PX, height / contentHeight);
+        const scale = Math.max(w / SCREEN_PX, h / contentHeight);
         content.style.transform = `translate(-50%, -50%) scale(${scale})`;
       }
     }
@@ -238,7 +323,8 @@ export function HtmlScreen({
           layer fades in over it. */}
       <meshBasicMaterial ref={matRef} color="#05070c" toneMapped={false} transparent opacity={0} />
 
-      {/* 1. The display as a surface in the scene. */}
+      {/* The display as a surface in the scene. The flat copy it hands off to
+          is a DOM sibling of the Canvas — see <FlatScreen>. */}
       <Html
         transform
         center
@@ -266,35 +352,6 @@ export function HtmlScreen({
         </div>
       </Html>
 
-      {/* 2. The same content, flat, for the end of the push. No `transform`,
-             so no CSS perspective and nothing to degenerate. */}
-      <Html center pointerEvents="none" zIndexRange={[11, 1]}>
-        <div
-          ref={flatFrame}
-          style={{
-            display: 'none',
-            position: 'relative',
-            overflow: 'hidden',
-            background: '#05070c',
-            willChange: 'width, height, opacity',
-          }}
-        >
-          <div
-            ref={flatContent}
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              width: SCREEN_PX,
-              height: contentHeight,
-              transformOrigin: 'center',
-              transform: 'translate(-50%, -50%)',
-            }}
-          >
-            {children}
-          </div>
-        </div>
-      </Html>
     </mesh>
   );
 }
@@ -305,17 +362,19 @@ export function Screen({
   rect,
   meshRef,
   opacity,
+  flat,
 }: {
   screen?: string | React.ReactNode;
   rect: ScreenRect;
   meshRef: React.RefObject<THREE.Mesh | null>;
   opacity: ScreenOpacity;
+  flat?: FlatHandle;
 }) {
   if (typeof screen === 'string') {
     return <TextureScreen src={screen} rect={rect} meshRef={meshRef} opacity={opacity} />;
   }
   return (
-    <HtmlScreen rect={rect} meshRef={meshRef} opacity={opacity}>
+    <HtmlScreen rect={rect} meshRef={meshRef} opacity={opacity} flat={flat}>
       {screen}
     </HtmlScreen>
   );
