@@ -35,10 +35,18 @@ export const FOLD_OPEN_DEG = 180;
 /**
  * Wing rotations for a fold angle in degrees.
  *
- * Baked flat, wing A bears 180° about the hinge and wing B bears 0°, where
- * bearing is atan2(z, x). A rotation of φ about Y maps a bearing θ to θ − φ,
- * and closing the book swings both wings towards +Z — towards each other,
- * display inwards — so θ_A = 90 + f/2 and θ_B = 90 − f/2.
+ * Baked flat, wing A bears 180 degrees about the hinge and wing B bears 0,
+ * where bearing is atan2(z, x). A rotation of phi about Y maps a bearing theta
+ * to theta - phi, and closing the book swings both wings towards +Z — towards
+ * each other, displays inwards — so theta_A = 90 + f/2 and theta_B = 90 - f/2.
+ *
+ * KNOWN ASSET DEFECT: this is the correct pair, and the fold is still wrong
+ * below about 150 degrees, because one of the two wings is mirrored in
+ * assets/foldable.glb — it presents its back where its display should be. Flat
+ * open, the content plane covers both halves and hides it, which is why it
+ * survived every check. The fix belongs in scripts/build-foldable-asset.py,
+ * not here; do not "correct" it by flipping these signs, which only swings the
+ * crease towards the viewer instead and leaves the same wing backwards.
  */
 export function wingRotations(foldDeg: number): [number, number] {
   const half = foldDeg / 2;

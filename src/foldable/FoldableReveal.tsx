@@ -8,10 +8,11 @@ import Scene from './Scene';
 import { FOLD_OPEN_DEG } from './geometry';
 import { useReveal } from '../shared/reveal';
 import { tuneRenderer, useDpr } from '../shared/studio';
+import { cdnModelUrl, ModelBoundary } from '../shared/model';
 import type { FoldableRevealProps } from '../types';
 
 /** Where this package's own copy of the model is served from by default. */
-export const DEFAULT_FOLDABLE_MODEL_URL = `https://unpkg.com/${__PKG_NAME__}@${__PKG_VERSION__}/assets/foldable.glb`;
+export const DEFAULT_FOLDABLE_MODEL_URL = cdnModelUrl('foldable.glb');
 
 const DEFAULTS = {
   initialPosition: [0, -0.38, 0] as [number, number, number],
@@ -46,6 +47,7 @@ export default function FoldableReveal({
   modelUrl = DEFAULT_FOLDABLE_MODEL_URL,
   onReady,
   onComplete,
+  onError,
   respectReducedMotion = true,
   className,
   style,
@@ -75,7 +77,8 @@ export default function FoldableReveal({
       gl={{ antialias: true, alpha: background === null, powerPreference: 'high-performance' }}
       onCreated={({ gl }) => tuneRenderer(gl)}
     >
-      <React.Suspense fallback={null}>
+      <ModelBoundary modelUrl={modelUrl} onError={onError}>
+        <React.Suspense fallback={null}>
         <Scene
           progress={progress}
           modelUrl={modelUrl}
@@ -90,7 +93,8 @@ export default function FoldableReveal({
           background={background}
           onReady={handleReady}
         />
-      </React.Suspense>
+        </React.Suspense>
+      </ModelBoundary>
     </Canvas>
   );
 }

@@ -59,6 +59,13 @@ export interface RevealProps {
   /** Fires once the model and screen content have loaded. */
   onReady?: () => void;
 
+  /**
+   * Fires if the model cannot be loaded at all — a CDN that will not serve it,
+   * a wrong `modelUrl`, a file that is not valid glTF. Nothing is rendered in
+   * that case, so this is the hook for showing a static image instead.
+   */
+  onError?: (error: Error) => void;
+
   /** Fires when the reveal finishes. Never fires when `autoPlay` is false. */
   onComplete?: () => void;
 

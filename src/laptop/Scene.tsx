@@ -140,8 +140,10 @@ function Laptop({
   const root = React.useRef<THREE.Group>(null);
   const lid = React.useRef<THREE.Group>(null);
   const glow = React.useRef<THREE.PointLight>(null);
-  const screenMat = React.useRef<THREE.MeshBasicMaterial>(null);
-  const htmlRef = React.useRef<HTMLDivElement>(null);
+  // One number for how lit the display is. <Screen> decides which of its
+  // layers that has to reach — the mesh, the projected DOM layer, or the flat
+  // copy it hands off to as the camera arrives.
+  const lit = React.useRef(0);
   const tints = React.useRef<TintUniforms[]>([]);
 
   // The model's own LidPivot is detached and re-hung under a group this
@@ -195,8 +197,7 @@ function Laptop({
         );
       }
       if (lid.current) lid.current.rotation.x = lidAngle * DEG;
-      if (screenMat.current) screenMat.current.opacity = 1;
-      if (htmlRef.current) htmlRef.current.style.opacity = '1';
+      lit.current = 1;
       if (glow.current) glow.current.intensity = 1.2;
       return;
     }
@@ -230,8 +231,7 @@ function Laptop({
     // 3. The panel wakes as it clears the keyboard, then goes to full
     //    brightness just before the hand-off.
     const wake = span(t, 0.42, 0.78);
-    if (screenMat.current) screenMat.current.opacity = Math.max(wake, 0.001);
-    if (htmlRef.current) htmlRef.current.style.opacity = String(wake);
+    lit.current = wake;
     if (glow.current) glow.current.intensity = wake * 0.5 + span(t, 0.82, 1) * 0.9;
   });
 
@@ -251,8 +251,7 @@ function Laptop({
             rotation: SCREEN_ROTATION,
           }}
           meshRef={screenRef}
-          matRef={screenMat}
-          htmlRef={htmlRef}
+          opacity={lit}
         />
 
         {/* Backlight spill, so the open lid actually lights the keyboard. */}

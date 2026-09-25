@@ -143,8 +143,10 @@ function Handset({
   const { scene } = useGLTF(modelUrl);
   const root = React.useRef<THREE.Group>(null);
   const glow = React.useRef<THREE.PointLight>(null);
-  const screenMat = React.useRef<THREE.MeshBasicMaterial>(null);
-  const htmlRef = React.useRef<HTMLDivElement>(null);
+  // One number for how lit the display is. <Screen> decides which of its
+  // layers that has to reach — the mesh, the projected DOM layer, or the flat
+  // copy it hands off to as the camera arrives.
+  const lit = React.useRef(0);
   const palette = React.useRef<PaletteBinding[]>([]);
 
   const model = React.useMemo(() => {
@@ -190,8 +192,7 @@ function Handset({
   }, [bodyColor, trimColor]);
 
   const light = (amount: number) => {
-    if (screenMat.current) screenMat.current.opacity = Math.max(amount, 0.001);
-    if (htmlRef.current) htmlRef.current.style.opacity = String(amount);
+    lit.current = amount;
     if (glow.current) glow.current.intensity = amount * 1.2;
   };
 
@@ -250,13 +251,7 @@ function Handset({
 
       {/* Edge to edge: the panel covers the display area exactly, which on
           this model runs to within a couple of millimetres of the rails. */}
-      <Screen
-        screen={screen}
-        rect={rect}
-        meshRef={screenRef}
-        matRef={screenMat}
-        htmlRef={htmlRef}
-      />
+      <Screen screen={screen} rect={rect} meshRef={screenRef} opacity={lit} />
 
       <pointLight
         ref={glow}

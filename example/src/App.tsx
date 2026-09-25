@@ -109,6 +109,15 @@ export default function App() {
   const forcedAngle = q.get('angle') ? Number(q.get('angle')) : null;
   const forcedBody = q.get('body');
   const forcedTrim = q.get('trim');
+  // `?cam=x,y,z` stages the camera by hand. Off-axis views of a folding
+  // device are genuinely ambiguous — you cannot tell which way the book opens
+  // without looking down its axis — so the checks need this.
+  // `?model=<url>` points a widget somewhere else — including somewhere that
+  // does not exist, which is how the load-failure path gets exercised.
+  const forcedModel = q.get('model');
+  const forcedCam = q.get('cam')
+    ? (q.get('cam')!.split(',').map(Number) as [number, number, number])
+    : undefined;
   const asked = q.get('widget') as Widget | null;
   const [widget, setWidget] = useState<Widget>(
     asked && asked in MODEL_URL ? asked : 'phone',
@@ -129,10 +138,12 @@ export default function App() {
   const knob = ANGLE[widget];
   const runKey = `${widget}-${mode}-${run}`;
   const common = {
-    modelUrl: MODEL_URL[widget],
+    modelUrl: forcedModel ?? MODEL_URL[widget],
     screen: textureUrl ?? <Page kind={widget} />,
     autoPlay: !manual,
+    ...(forcedCam ? { cameraPosition: forcedCam } : {}),
     onComplete: () => console.log(`${widget} reveal complete`),
+    onError: (e: Error) => console.log('WIDGET_ONERROR', e.message),
   };
 
   return (

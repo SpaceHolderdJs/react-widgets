@@ -116,6 +116,7 @@ All three share this set:
 | `background` | `string \| null` | `'#04050a'` | `null` leaves the canvas transparent. |
 | `modelUrl` | `string` | unpkg | See **Serving the models**. |
 | `onReady` | `() => void` | — | Model and screen content have loaded. |
+| `onError` | `(e: Error) => void` | — | The model could not be loaded. Nothing renders; show a static image instead. |
 | `onComplete` | `() => void` | — | The reveal finished. Never fires when `autoPlay` is `false`. |
 | `respectReducedMotion` | `boolean` | `true` | Show the final frame instead of animating, for visitors who ask for it. |
 | `className`, `style` | | | Applied to the canvas. |
@@ -238,13 +239,24 @@ Each widget has one: `lidAngle` on the laptop, `foldAngle` on the foldable,
 ## Serving the models
 
 Each widget loads a `.glb` — 487 KB, 478 KB and 523 KB. By default each is
-fetched from this package's copy on unpkg, so a component works with no build
-configuration:
+fetched from this package's copy on jsDelivr, so a component works with no
+build configuration:
 
 ```
-https://unpkg.com/@space_holder/react-widgets@<version>/assets/laptop.glb
-https://unpkg.com/@space_holder/react-widgets@<version>/assets/foldable.glb
-https://unpkg.com/@space_holder/react-widgets@<version>/assets/handset.glb
+https://cdn.jsdelivr.net/npm/@space_holder/react-widgets@<version>/assets/laptop.glb
+https://cdn.jsdelivr.net/npm/@space_holder/react-widgets@<version>/assets/foldable.glb
+https://cdn.jsdelivr.net/npm/@space_holder/react-widgets@<version>/assets/handset.glb
+```
+
+**That default is for getting started, not for shipping.** It puts someone
+else's CDN in the critical path of your hero, and a CDN that will not serve
+the file is indistinguishable from a broken widget — `useGLTF` suspends, and
+a Suspense boundary is as happy with a rejected fetch as a pending one, so you
+get an empty canvas and nothing in the console. The package now catches that
+and says so by name:
+
+```tsx
+<PhoneReveal onError={(e) => setFallbackImage(true)} />
 ```
 
 The files are named after the hardware rather than the component, so
@@ -270,6 +282,10 @@ import laptopUrl from '@space_holder/react-widgets/laptop.glb';
 import foldableUrl from '@space_holder/react-widgets/foldable.glb';
 import handsetUrl from '@space_holder/react-widgets/handset.glb';
 ```
+
+The demo app in this repo copies them on `postinstall`, resolved through the
+package's export map rather than a `node_modules` path, which is the shape
+worth stealing.
 
 To avoid a blank first frame, warm the cache before the component mounts:
 

@@ -136,8 +136,10 @@ function Foldable({
   const wingA = React.useRef<THREE.Object3D | null>(null);
   const wingB = React.useRef<THREE.Object3D | null>(null);
   const glow = React.useRef<THREE.PointLight>(null);
-  const screenMat = React.useRef<THREE.MeshBasicMaterial>(null);
-  const htmlRef = React.useRef<HTMLDivElement>(null);
+  // One number for how lit the display is. <Screen> decides which of its
+  // layers that has to reach — the mesh, the projected DOM layer, or the flat
+  // copy it hands off to as the camera arrives.
+  const lit = React.useRef(0);
   const palette = React.useRef<PaletteBinding[]>([]);
 
   const model = React.useMemo(() => {
@@ -201,8 +203,7 @@ function Foldable({
       // The panel spans both halves, so it only makes sense while they are
       // roughly coplanar. Folded, it would hang in the air between them.
       const flat = smoothstep(foldAngle, 148, 178);
-      if (screenMat.current) screenMat.current.opacity = Math.max(flat, 0.001);
-      if (htmlRef.current) htmlRef.current.style.opacity = String(flat);
+      lit.current = flat;
       if (glow.current) glow.current.intensity = 1.2 * flat;
       return;
     }
@@ -232,8 +233,7 @@ function Foldable({
     // 3. The panel wakes once the fold is far enough along that the display is
     //    actually facing out, then goes to full brightness for the hand-off.
     const wake = span(t, 0.46, 0.8) * flat;
-    if (screenMat.current) screenMat.current.opacity = Math.max(wake, 0.001);
-    if (htmlRef.current) htmlRef.current.style.opacity = String(wake);
+    lit.current = wake;
     if (glow.current) glow.current.intensity = wake * 0.4 + span(t, 0.84, 1) * 0.8;
   });
 
@@ -251,13 +251,7 @@ function Foldable({
       {/* One plane across both halves. The two wings are coplanar when flat,
           so a single panel is geometrically right; while the phone is still
           folding it is faded out, which is also when it would clip. */}
-      <Screen
-        screen={screen}
-        rect={rect}
-        meshRef={screenRef}
-        matRef={screenMat}
-        htmlRef={htmlRef}
-      />
+      <Screen screen={screen} rect={rect} meshRef={screenRef} opacity={lit} />
 
       <pointLight
         ref={glow}
