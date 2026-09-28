@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 
-import { SCREEN, SCREEN_ROTATION } from './geometry';
+import { SCREEN, SCREEN_CORNER, SCREEN_ROTATION } from './geometry';
 import { easeInOut, easeOut, easeOutBack, lerp, span } from '../easing';
 import { Screen, type ScreenHandle } from '../shared/screen';
 import { Studio, Ready } from '../shared/studio';
@@ -259,6 +259,7 @@ function Laptop({
             height: SCREEN.height,
             position: [0, SCREEN.y, SCREEN.z],
             rotation: SCREEN_ROTATION,
+            corner: SCREEN_CORNER,
           }}
           meshRef={screenRef}
           opacity={lit}

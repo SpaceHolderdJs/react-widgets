@@ -49,3 +49,13 @@ export function facing(turnDeg: number): number {
   const c = Math.cos(turnDeg * (Math.PI / 180));
   return Math.min(1, Math.max(0, (c - 0.55) / (0.96 - 0.55)));
 }
+
+/**
+ * Corner radius of the display, in model units.
+ *
+ * Measured off the bundled model: the display-panel mesh's furthest vertex
+ * along each 45-degree diagonal sits on the corner arc, which fixes the
+ * radius without depending on how finely the arc is tessellated. All four
+ * corners agreed to 0.0005.
+ */
+export const SCREEN_CORNER = 0.04246;

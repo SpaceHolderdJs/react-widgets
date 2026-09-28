@@ -5,6 +5,7 @@ import { useTexture } from '@react-three/drei';
 
 import { quadTransform, type Corner } from './homography';
 import { finishFor, specularAt } from './finish';
+import { roundedPlane } from './rounded';
 
 const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
 
@@ -16,6 +17,11 @@ export type ScreenRect = {
   height: number;
   position: [number, number, number];
   rotation: [number, number, number];
+  /**
+   * Corner radius of the display aperture, in model units. Every device has
+   * one; content drawn without it runs past the curve onto the bezel.
+   */
+  corner?: number;
 };
 
 /**
@@ -55,11 +61,18 @@ export function useScreenHandle(): ScreenHandle {
 export function ScreenSurface({
   handle,
   aspect,
+  radius = 0,
   children,
 }: {
   handle: ScreenHandle;
   /** width / height of the display, so the content is authored to match. */
   aspect: number;
+  /**
+   * The display's corner radius, in the same authored pixels as the content.
+   * The homography carries a border-radius along with everything else, so
+   * the curve lands on the glass correctly at any angle.
+   */
+  radius?: number;
   children: React.ReactNode;
 }) {
   return (
@@ -73,6 +86,7 @@ export function ScreenSurface({
         height: Math.round(SCREEN_PX / aspect),
         transformOrigin: '0 0',
         display: 'none',
+        borderRadius: radius ? `${radius}px` : undefined,
         overflow: 'hidden',
         background: '#05070c',
         // Live, not a picture of live. The homography is invertible, so the
@@ -110,6 +124,22 @@ export function ScreenSurface({
   );
 }
 
+
+/**
+ * The display's own outline, as a geometry.
+ *
+ * Memoised on the numbers that define it and disposed when they change, since
+ * a geometry rebuilt every render would leak a buffer per frame on the GPU.
+ */
+function useApertureGeometry(rect: ScreenRect) {
+  const geometry = React.useMemo(
+    () => roundedPlane(rect.width, rect.height, rect.corner ?? 0),
+    [rect.width, rect.height, rect.corner],
+  );
+  React.useEffect(() => () => geometry.dispose(), [geometry]);
+  return geometry;
+}
+
 export function TextureScreen({
   src,
   rect,
@@ -122,6 +152,7 @@ export function TextureScreen({
   opacity: ScreenOpacity;
 }) {
   const matRef = React.useRef<THREE.MeshBasicMaterial>(null);
+  const geometry = useApertureGeometry(rect);
   const texture = useTexture(src, (loaded) => {
     const map = Array.isArray(loaded) ? loaded[0] : loaded;
     map.colorSpace = THREE.SRGBColorSpace;
@@ -135,8 +166,12 @@ export function TextureScreen({
   });
 
   return (
-    <mesh ref={meshRef} position={rect.position} rotation={rect.rotation}>
-      <planeGeometry args={[rect.width, rect.height]} />
+    <mesh
+      ref={meshRef}
+      position={rect.position}
+      rotation={rect.rotation}
+      geometry={geometry}
+    >
       <meshBasicMaterial ref={matRef} map={texture} toneMapped={false} transparent opacity={0} />
     </mesh>
   );
@@ -192,6 +227,7 @@ export function HtmlScreen({
   matte?: boolean;
 }) {
   const matRef = React.useRef<THREE.MeshBasicMaterial>(null);
+  const geometry = useApertureGeometry(rect);
   const { camera, size, gl } = useThree();
   const finish = finishFor(matte);
 
@@ -311,8 +347,12 @@ export function HtmlScreen({
   });
 
   return (
-    <mesh ref={meshRef} position={rect.position} rotation={rect.rotation}>
-      <planeGeometry args={[rect.width, rect.height]} />
+    <mesh
+      ref={meshRef}
+      position={rect.position}
+      rotation={rect.rotation}
+      geometry={geometry}
+    >
       {/* A backing plane, so the panel is never see-through while the content
           fades in over it, and so the display reads as glass when unlit. */}
       <meshBasicMaterial ref={matRef} color="#05070c" toneMapped={false} transparent opacity={0} />
@@ -335,13 +375,14 @@ export function HtmlScreen({
  */
 export function ScreenGlass({ rect, matte }: { rect: ScreenRect; matte?: boolean }) {
   const finish = finishFor(matte);
+  const geometry = useApertureGeometry(rect);
   return (
     <mesh
       position={[rect.position[0], rect.position[1], rect.position[2] + 0.0008]}
       rotation={rect.rotation}
       renderOrder={2}
+      geometry={geometry}
     >
-      <planeGeometry args={[rect.width, rect.height]} />
       <meshPhysicalMaterial
         color="#ffffff"
         transparent

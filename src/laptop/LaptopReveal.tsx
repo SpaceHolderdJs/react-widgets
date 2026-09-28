@@ -5,10 +5,10 @@ import { Canvas } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 
 import Scene from './Scene';
-import { LID_OPEN_DEG, SCREEN } from './geometry';
+import { LID_OPEN_DEG, SCREEN, SCREEN_CORNER } from './geometry';
 import { useReveal } from '../shared/reveal';
 import { tuneRenderer, useDpr } from '../shared/studio';
-import { ScreenSurface, useScreenHandle } from '../shared/screen';
+import { ScreenSurface, SCREEN_PX, useScreenHandle } from '../shared/screen';
 import { cdnModelUrl, ModelBoundary } from '../shared/model';
 import type { LaptopRevealProps } from '../types';
 
@@ -118,7 +118,11 @@ export default function LaptopReveal({
     </Canvas>
 
       {typeof screen === 'string' ? null : (
-        <ScreenSurface handle={handle} aspect={SCREEN.width / SCREEN.height}>
+        <ScreenSurface
+          handle={handle}
+          aspect={SCREEN.width / SCREEN.height}
+          radius={(SCREEN_CORNER / SCREEN.width) * SCREEN_PX}
+        >
           {screen}
         </ScreenSurface>
       )}

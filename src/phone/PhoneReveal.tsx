@@ -5,10 +5,10 @@ import { Canvas } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 
 import Scene from './Scene';
-import { SCREEN, TURN_FACING_DEG } from './geometry';
+import { SCREEN, SCREEN_CORNER, TURN_FACING_DEG } from './geometry';
 import { useReveal } from '../shared/reveal';
 import { tuneRenderer, useDpr } from '../shared/studio';
-import { ScreenSurface, useScreenHandle } from '../shared/screen';
+import { ScreenSurface, SCREEN_PX, useScreenHandle } from '../shared/screen';
 import { cdnModelUrl, ModelBoundary } from '../shared/model';
 import type { PhoneRevealProps } from '../types';
 
@@ -132,7 +132,11 @@ export default function PhoneReveal({
     </Canvas>
 
       {typeof screen === 'string' ? null : (
-        <ScreenSurface handle={handle} aspect={SCREEN.width / SCREEN.height}>
+        <ScreenSurface
+          handle={handle}
+          aspect={SCREEN.width / SCREEN.height}
+          radius={(SCREEN_CORNER / SCREEN.width) * SCREEN_PX}
+        >
           {screen}
         </ScreenSurface>
       )}

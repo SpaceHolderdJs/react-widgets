@@ -9,7 +9,7 @@ import { applyGlassFinish, isGlass } from '../shared/finish';
 import { Studio, Ready } from '../shared/studio';
 import type { Progress } from '../shared/reveal';
 import { bindPalette, setPalette, type PaletteBinding, type PaletteGroup } from '../shared/palette';
-import { FOLD_OPEN_DEG, MODEL_YAW, SCREEN, SCREEN_ROTATION, wingRotations } from './geometry';
+import { FOLD_OPEN_DEG, MODEL_YAW, SCREEN, SCREEN_CORNER, SCREEN_ROTATION, wingRotations } from './geometry';
 
 const DEG = Math.PI / 180;
 
@@ -252,6 +252,7 @@ function Foldable({
     height: SCREEN.height,
     position: [SCREEN.x, SCREEN.y, SCREEN.z],
     rotation: SCREEN_ROTATION,
+    corner: SCREEN_CORNER,
   };
 
   return (

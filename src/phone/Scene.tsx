@@ -9,7 +9,7 @@ import { applyGlassFinish, isGlass } from '../shared/finish';
 import { Studio, Ready } from '../shared/studio';
 import type { Progress } from '../shared/reveal';
 import { bindPalette, setPalette, type PaletteBinding, type PaletteGroup } from '../shared/palette';
-import { facing, SCREEN, SCREEN_ROTATION, TURN_FACING_DEG } from './geometry';
+import { facing, SCREEN, SCREEN_CORNER, SCREEN_ROTATION, TURN_FACING_DEG } from './geometry';
 
 const DEG = Math.PI / 180;
 
@@ -253,6 +253,7 @@ function Handset({
     height: SCREEN.height,
     position: [SCREEN.x, SCREEN.y, SCREEN.z],
     rotation: SCREEN_ROTATION,
+    corner: SCREEN_CORNER,
   };
 
   return (

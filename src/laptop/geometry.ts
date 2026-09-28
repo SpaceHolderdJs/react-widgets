@@ -24,6 +24,18 @@ export const SCREEN = {
   z: -0.14376,
 } as const;
 
+/**
+ * Corner radius of the display, in model units.
+ *
+ * Derived rather than measured: this model is a single aluminium material
+ * with no separate display mesh, so there is no screen aperture to measure.
+ * The lid's own outer corner runs at 0.0163 and the glass is inset about
+ * 0.004 from the edge, which puts the aperture near 0.012. Erring small on
+ * purpose — a radius under the true one is invisible, one over it eats the
+ * content.
+ */
+export const SCREEN_CORNER = 0.012;
+
 /** Screen aspect, used to size HTML content so it maps 1:1 onto the panel. */
 export const SCREEN_ASPECT = SCREEN.width / SCREEN.height;
 

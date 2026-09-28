@@ -118,6 +118,22 @@ It also means the content is genuinely live at any angle: text on the display
 selects, and controls on it click, because the browser hit tests back through
 the same transform.
 
+### Rounded displays
+
+Every device has a rounded screen aperture, and everything drawn on the
+display is cut to match: the DOM panel through `border-radius`, which the
+homography carries along with the content, and the meshes through their own
+geometry, so an image texture stops at the curve too.
+
+The radii are measured off the bundled models and exported, in model units,
+if you are placing something of your own against a display:
+
+| | radius | at the 1440 authoring width |
+| --- | --- | --- |
+| `PHONE_SCREEN_CORNER` | `0.04246` | 190px |
+| `FOLDABLE_SCREEN_CORNER` | `0.04519` | 87px |
+| `LAPTOP_SCREEN_CORNER` | `0.012` | 44px |
+
 ### Screen finish
 
 `matteScreen` gives the display an anti-glare surface. Every device takes it:

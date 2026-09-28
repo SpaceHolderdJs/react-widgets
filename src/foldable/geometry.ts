@@ -77,3 +77,10 @@ export function wingRotations(foldDeg: number): [number, number] {
   const DEG = Math.PI / 180;
   return [(half - 90) * DEG, (90 - half) * DEG];
 }
+
+/**
+ * Corner radius of the display, in model units, measured off the bundled
+ * model the same way as the other two — the diagonal extremum of the
+ * `display` mesh sits on the corner arc.
+ */
+export const SCREEN_CORNER = 0.04519;
