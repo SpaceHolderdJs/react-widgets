@@ -15,6 +15,23 @@ export interface RevealProps {
   screen?: string | ReactNode;
 
   /**
+   * Give the display an anti-glare finish.
+   *
+   * A glossy panel throws the studio back as a tight, bright highlight that
+   * slides across the glass as the device turns. Matte spreads that out until
+   * it no longer carries an image — dimmer, broader, and much less in the way
+   * of whatever is on the screen. It is the nano-texture option, not an
+   * on/off switch for reflections.
+   *
+   * Applies to the device's own front glass and, when `screen` is live HTML,
+   * to the sheen drawn over the content — a DOM panel covers the display, so
+   * a reflection rendered in the scene would land behind it.
+   *
+   * @default false
+   */
+  matteScreen?: boolean;
+
+  /**
    * Where the device starts, in model units. During the reveal it animates
    * from here to the origin; with `autoPlay={false}` it simply stays here.
    */

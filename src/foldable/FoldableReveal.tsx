@@ -35,6 +35,7 @@ const DEFAULTS = {
  */
 export default function FoldableReveal({
   screen,
+  matteScreen = false,
   initialPosition = DEFAULTS.initialPosition,
   initialRotation = DEFAULTS.initialRotation,
   bodyColor = DEFAULTS.bodyColor,
@@ -109,6 +110,7 @@ export default function FoldableReveal({
           background={background}
           onReady={handleReady}
           handle={handle}
+          matteScreen={matteScreen}
         />
         </React.Suspense>
       </ModelBoundary>

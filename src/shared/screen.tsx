@@ -4,6 +4,9 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 
 import { quadTransform, type Corner } from './homography';
+import { finishFor, specularAt } from './finish';
+
+const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
 
 /** HTML content is authored at this width, then mapped onto the panel. */
 export const SCREEN_PX = 1440;
@@ -32,11 +35,14 @@ export type ScreenOpacity = React.RefObject<number>;
  */
 export type ScreenHandle = {
   frame: React.RefObject<HTMLDivElement | null>;
+  /** The sheen laid over the content; see <ScreenSurface>. */
+  sheen: React.RefObject<HTMLDivElement | null>;
 };
 
 export function useScreenHandle(): ScreenHandle {
   const frame = React.useRef<HTMLDivElement>(null);
-  return React.useMemo(() => ({ frame }), [frame]);
+  const sheen = React.useRef<HTMLDivElement>(null);
+  return React.useMemo(() => ({ frame, sheen }), [frame, sheen]);
 }
 
 /**
@@ -77,6 +83,29 @@ export function ScreenSurface({
       }}
     >
       {children}
+      {/*
+       * The reflection on the glass.
+       *
+       * A live panel is DOM painted over the canvas, so it covers the display
+       * completely and anything the scene reflects there lands behind it. The
+       * sheen has to be drawn here or it is not drawn at all. It is a plain
+       * gradient whose direction and strength the widget rewrites each frame
+       * from the display's own orientation, so it slides across the glass as
+       * the device turns — and it rides along with the content, because the
+       * homography on the parent carries it too.
+       */}
+      <div
+        ref={handle.sheen}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          mixBlendMode: 'screen',
+          opacity: 0,
+          willChange: 'background, opacity',
+        }}
+      />
     </div>
   );
 }
@@ -154,14 +183,17 @@ export function HtmlScreen({
   meshRef,
   opacity,
   handle,
+  matte,
 }: {
   rect: ScreenRect;
   meshRef: React.RefObject<THREE.Mesh | null>;
   opacity: ScreenOpacity;
   handle?: ScreenHandle;
+  matte?: boolean;
 }) {
   const matRef = React.useRef<THREE.MeshBasicMaterial>(null);
   const { camera, size, gl } = useThree();
+  const finish = finishFor(matte);
 
   const contentHeight = Math.round(SCREEN_PX / (rect.width / rect.height));
 
@@ -178,6 +210,9 @@ export function HtmlScreen({
         { x: 0, y: 0 },
         { x: 0, y: 0 },
       ] as [Corner, Corner, Corner, Corner],
+      camPos: new THREE.Vector3(),
+      toCorner: new THREE.Vector3(),
+      spec: [0, 0, 0, 0],
     }),
     [],
   );
@@ -216,12 +251,20 @@ export function HtmlScreen({
     const ox = gl.domElement.offsetLeft;
     const oy = gl.domElement.offsetTop;
 
+    scratch.camPos.setFromMatrixPosition(camera.matrixWorld);
+
     for (let k = 0; k < 4; k++) {
       const [cx, cy] = CORNERS[k];
-      scratch.v
-        .set(cx * rect.width, cy * rect.height, 0)
-        .applyMatrix4(mesh.matrixWorld)
-        .project(camera);
+      scratch.v.set(cx * rect.width, cy * rect.height, 0).applyMatrix4(mesh.matrixWorld);
+
+      // The sheen is sampled here, while this corner is still a point in the
+      // world: the view direction differs at each corner, which is the only
+      // reason a flat panel under a distant light has a highlight that sits
+      // somewhere rather than washing the whole surface evenly.
+      scratch.toCorner.copy(scratch.camPos).sub(scratch.v);
+      scratch.spec[k] = specularAt(scratch.normal, scratch.toCorner, finish);
+
+      scratch.v.project(camera);
       // Normalised device coordinates, y up, to CSS pixels from the canvas's
       // top left.
       scratch.quad[k].x = ox + (scratch.v.x + 1) * 0.5 * size.width;
@@ -238,6 +281,33 @@ export function HtmlScreen({
     frame.style.display = 'block';
     frame.style.opacity = String(lit);
     frame.style.transform = matrix;
+
+    const sheen = handle?.sheen.current;
+    if (sheen) {
+      // Fit a plane through the four corner values, in the panel's own space:
+      // u runs left to right, v runs top to bottom. Two differences give the
+      // gradient, their average gives the level.
+      const [s0, s1, s2, s3] = scratch.spec;
+      const du = (s1 + s2 - s0 - s3) * 0.5;
+      const dv = (s3 + s2 - s0 - s1) * 0.5;
+      const mid = (s0 + s1 + s2 + s3) * 0.25;
+      const swing = Math.hypot(du, dv);
+
+      if (mid + swing < 0.002) {
+        sheen.style.opacity = '0';
+      } else {
+        // CSS measures a gradient's angle clockwise from "to top", and v
+        // points down, so the direction of increase is atan2(du, -dv).
+        const angle = (Math.atan2(du, -dv) * 180) / Math.PI;
+        const lo = clamp01(mid - swing);
+        const hi = clamp01(mid + swing);
+        sheen.style.opacity = '1';
+        sheen.style.background =
+          `linear-gradient(${angle.toFixed(1)}deg, ` +
+          `rgba(255,255,255,${lo.toFixed(3)}) 0%, ` +
+          `rgba(255,255,255,${hi.toFixed(3)}) 100%)`;
+      }
+    }
   });
 
   return (
@@ -250,6 +320,41 @@ export function HtmlScreen({
   );
 }
 
+/**
+ * Front glass, for a device whose model does not carry any.
+ *
+ * The phone and the foldable were authored with a glass surface over the
+ * display and it takes the finish directly. The laptop has a single material
+ * for the whole body and no glass at all, so it gets one here: a sheet a
+ * fraction of a millimetre in front of the panel, which is what the finish
+ * then has something to act on.
+ *
+ * It is deliberately faint. A display reflects the room; it is not a mirror,
+ * and a pane bright enough to notice on its own would read as haze over the
+ * content rather than as a surface in front of it.
+ */
+export function ScreenGlass({ rect, matte }: { rect: ScreenRect; matte?: boolean }) {
+  const finish = finishFor(matte);
+  return (
+    <mesh
+      position={[rect.position[0], rect.position[1], rect.position[2] + 0.0008]}
+      rotation={rect.rotation}
+      renderOrder={2}
+    >
+      <planeGeometry args={[rect.width, rect.height]} />
+      <meshPhysicalMaterial
+        color="#ffffff"
+        transparent
+        opacity={matte ? 0.05 : 0.12}
+        roughness={finish.roughness}
+        metalness={0}
+        envMapIntensity={finish.envMapIntensity}
+        depthWrite={false}
+      />
+    </mesh>
+  );
+}
+
 /** Picks the right screen for whatever the caller passed. */
 export function Screen({
   screen,
@@ -257,15 +362,32 @@ export function Screen({
   meshRef,
   opacity,
   handle,
+  matte,
+  glass,
 }: {
   screen?: string | React.ReactNode;
   rect: ScreenRect;
   meshRef: React.RefObject<THREE.Mesh | null>;
   opacity: ScreenOpacity;
   handle?: ScreenHandle;
+  matte?: boolean;
+  /** Render our own front glass, for a model that has none of its own. */
+  glass?: boolean;
 }) {
-  if (typeof screen === 'string') {
-    return <TextureScreen src={screen} rect={rect} meshRef={meshRef} opacity={opacity} />;
-  }
-  return <HtmlScreen rect={rect} meshRef={meshRef} opacity={opacity} handle={handle} />;
+  return (
+    <>
+      {typeof screen === 'string' ? (
+        <TextureScreen src={screen} rect={rect} meshRef={meshRef} opacity={opacity} />
+      ) : (
+        <HtmlScreen
+          rect={rect}
+          meshRef={meshRef}
+          opacity={opacity}
+          handle={handle}
+          matte={matte}
+        />
+      )}
+      {glass ? <ScreenGlass rect={rect} matte={matte} /> : null}
+    </>
+  );
 }

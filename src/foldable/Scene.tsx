@@ -5,6 +5,7 @@ import { useGLTF } from '@react-three/drei';
 
 import { easeInOut, easeOut, easeOutBack, lerp, smoothstep, span } from '../easing';
 import { Screen, type ScreenHandle, type ScreenRect } from '../shared/screen';
+import { applyGlassFinish, isGlass } from '../shared/finish';
 import { Studio, Ready } from '../shared/studio';
 import type { Progress } from '../shared/reveal';
 import { bindPalette, setPalette, type PaletteBinding, type PaletteGroup } from '../shared/palette';
@@ -25,6 +26,11 @@ const groupsFor = (body: string, trim: string): PaletteGroup[] => [
 export type FoldableSceneProps = {
   /** The DOM layer the screen content is mapped onto; see <ScreenSurface>. */
   handle?: ScreenHandle;
+  /**
+   * Anti-glare display glass: spreads the reflection out until it stops
+   * carrying an image, the way a nano-texture panel does.
+   */
+  matteScreen?: boolean;
   progress: React.RefObject<Progress>;
   modelUrl: string;
   screen?: string | React.ReactNode;
@@ -131,6 +137,7 @@ function Foldable({
   foldAngle,
   screenRef,
   handle,
+  matteScreen,
 }: Omit<FoldableSceneProps, 'cameraPosition' | 'background' | 'onReady'> & {
   screenRef: React.RefObject<THREE.Mesh | null>;
 }) {
@@ -165,6 +172,7 @@ function Foldable({
         // the chassis still looks like metal rather than plastic.
         material.metalness = Math.min(material.metalness ?? 0.5, 0.62);
         material.envMapIntensity = 2.1;
+        if (isGlass(source.name)) applyGlassFinish(material, matteScreen);
         seen.set(source.name, material);
       }
       mesh.material = material;
@@ -174,7 +182,7 @@ function Foldable({
     // Colours are applied through the bindings below, so changing them must
     // not rebuild the scene graph.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene]);
+  }, [scene, matteScreen]);
 
   React.useEffect(() => {
     wingA.current = model.getObjectByName('WingA') ?? null;
@@ -257,7 +265,14 @@ function Foldable({
       {/* One plane across both halves. The two wings are coplanar when flat,
           so a single panel is geometrically right; while the phone is still
           folding it is faded out, which is also when it would clip. */}
-      <Screen screen={screen} rect={rect} meshRef={screenRef} opacity={lit} handle={handle} />
+      <Screen
+        screen={screen}
+        rect={rect}
+        meshRef={screenRef}
+        opacity={lit}
+        handle={handle}
+        matte={matteScreen}
+      />
 
       <pointLight
         ref={glow}
@@ -285,6 +300,7 @@ export default function FoldableScene({
   background,
   onReady,
   handle,
+  matteScreen,
 }: FoldableSceneProps) {
   const screenRef = React.useRef<THREE.Mesh | null>(null);
 
@@ -303,6 +319,7 @@ export default function FoldableScene({
         foldAngle={foldAngle}
         screenRef={screenRef}
         handle={handle}
+        matteScreen={matteScreen}
       />
       <CameraRig
         progress={progress}

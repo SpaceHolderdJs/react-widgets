@@ -5,6 +5,7 @@ import { useGLTF } from '@react-three/drei';
 
 import { easeInOut, easeOut, easeOutBack, lerp, span } from '../easing';
 import { Screen, type ScreenHandle, type ScreenRect } from '../shared/screen';
+import { applyGlassFinish, isGlass } from '../shared/finish';
 import { Studio, Ready } from '../shared/studio';
 import type { Progress } from '../shared/reveal';
 import { bindPalette, setPalette, type PaletteBinding, type PaletteGroup } from '../shared/palette';
@@ -31,6 +32,11 @@ const groupsFor = (body: string, trim: string): PaletteGroup[] => [
 export type PhoneSceneProps = {
   /** The DOM layer the screen content is mapped onto; see <ScreenSurface>. */
   handle?: ScreenHandle;
+  /**
+   * Anti-glare display glass: spreads the reflection out until it stops
+   * carrying an image, the way a nano-texture panel does.
+   */
+  matteScreen?: boolean;
   progress: React.RefObject<Progress>;
   modelUrl: string;
   screen?: string | React.ReactNode;
@@ -140,6 +146,7 @@ function Handset({
   turnAngle,
   screenRef,
   handle,
+  matteScreen,
 }: Omit<PhoneSceneProps, 'cameraPosition' | 'background' | 'onReady'> & {
   screenRef: React.RefObject<THREE.Mesh | null>;
 }) {
@@ -178,6 +185,7 @@ function Handset({
         // as a colour rather than as two highlights on black.
         material.roughness = Math.max(material.roughness ?? 0.5, 0.42);
         material.envMapIntensity = 2.4;
+        if (isGlass(source.name)) applyGlassFinish(material, matteScreen);
         seen.set(source.name, material);
       }
       mesh.material = material;
@@ -187,7 +195,7 @@ function Handset({
     // Colours are applied through the bindings below, so changing them must
     // not rebuild the scene graph.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene]);
+  }, [scene, matteScreen]);
 
   React.useEffect(() => {
     setPalette(palette.current, groupsFor(bodyColor, trimColor));
@@ -253,7 +261,14 @@ function Handset({
 
       {/* Edge to edge: the panel covers the display area exactly, which on
           this model runs to within a couple of millimetres of the rails. */}
-      <Screen screen={screen} rect={rect} meshRef={screenRef} opacity={lit} handle={handle} />
+      <Screen
+        screen={screen}
+        rect={rect}
+        meshRef={screenRef}
+        opacity={lit}
+        handle={handle}
+        matte={matteScreen}
+      />
 
       <pointLight
         ref={glow}
@@ -281,6 +296,7 @@ export default function PhoneScene({
   background,
   onReady,
   handle,
+  matteScreen,
 }: PhoneSceneProps) {
   const screenRef = React.useRef<THREE.Mesh | null>(null);
 
@@ -299,6 +315,7 @@ export default function PhoneScene({
         turnAngle={turnAngle}
         screenRef={screenRef}
         handle={handle}
+        matteScreen={matteScreen}
       />
       <CameraRig
         progress={progress}

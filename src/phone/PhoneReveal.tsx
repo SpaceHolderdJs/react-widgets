@@ -50,6 +50,7 @@ const DEFAULTS = {
  */
 export default function PhoneReveal({
   screen,
+  matteScreen = false,
   initialPosition = DEFAULTS.initialPosition,
   initialRotation = DEFAULTS.initialRotation,
   bodyColor = DEFAULTS.bodyColor,
@@ -124,6 +125,7 @@ export default function PhoneReveal({
           background={background}
           onReady={handleReady}
           handle={handle}
+          matteScreen={matteScreen}
         />
         </React.Suspense>
       </ModelBoundary>

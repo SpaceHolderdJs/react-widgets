@@ -35,6 +35,7 @@ const DEFAULTS = {
  */
 export default function LaptopReveal({
   screen,
+  matteScreen = false,
   initialPosition = DEFAULTS.initialPosition,
   initialRotation = DEFAULTS.initialRotation,
   laptopColor = DEFAULTS.laptopColor,
@@ -110,6 +111,7 @@ export default function LaptopReveal({
           background={background}
           onReady={handleReady}
           handle={handle}
+          matteScreen={matteScreen}
         />
         </React.Suspense>
       </ModelBoundary>

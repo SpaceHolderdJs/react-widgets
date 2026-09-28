@@ -118,6 +118,35 @@ It also means the content is genuinely live at any angle: text on the display
 selects, and controls on it click, because the browser hit tests back through
 the same transform.
 
+### Screen finish
+
+`matteScreen` gives the display an anti-glare surface. Every device takes it:
+
+```tsx
+<PhoneReveal matteScreen />
+```
+
+A glossy panel — the default — throws the studio's fill light back as a
+highlight that travels across the glass as the device turns, and washes pale
+towards grazing angles the way a real screen does. Matte scatters that:
+broader, and about five times weaker along any one line of sight, so the
+content stays readable while the device is moving. It is the nano-texture
+option, not a switch that turns reflections off.
+
+Where the finish is applied depends on how the screen is drawn:
+
+- On the **device's own front glass**, which is what you see on the bezel and
+  across the whole panel when `screen` is an image texture.
+- On a **sheen laid over the DOM**, when `screen` is live HTML. A DOM panel
+  covers the display exactly, so a reflection rendered in the scene would land
+  behind it and never be seen; it is drawn in the DOM instead, from the
+  display's own orientation each frame.
+
+The laptop is a special case worth knowing about: its model is a single
+aluminium material with no glass of its own, so `<LaptopReveal>` renders its
+own. That is why its display started catching reflections in 0.3.0 —
+`matteScreen` reproduces how it looked before.
+
 ## Props
 
 All three share this set:
@@ -125,6 +154,7 @@ All three share this set:
 | Prop | Type | Default | |
 | --- | --- | --- | --- |
 | `screen` | `string \| ReactNode` | — | A string is loaded as an image or video texture. Anything else is rendered as HTML on the panel. |
+| `matteScreen` | `boolean` | `false` | Anti-glare display glass. See **Screen finish**. |
 | `initialPosition` | `[x, y, z]` | per widget | Where the device starts, in model units. |
 | `initialRotation` | `[x, y, z]` degrees | per widget | How it is turned when it starts. The reveal unwinds this as it settles. |
 | `autoPlay` | `boolean` | `true` | Play the reveal on mount. `false` gives you a device you place yourself. |
@@ -132,7 +162,7 @@ All three share this set:
 | `cameraPosition` | `[x, y, z]` | per widget | Where the camera starts (and stays, in manual mode). |
 | `fov` | `number` | `38` | Vertical field of view. |
 | `background` | `string \| null` | `'#04050a'` | `null` leaves the canvas transparent. |
-| `modelUrl` | `string` | unpkg | See **Serving the models**. |
+| `modelUrl` | `string` | jsDelivr | See **Serving the models**. |
 | `onReady` | `() => void` | — | Model and screen content have loaded. |
 | `onError` | `(e: Error) => void` | — | The model could not be loaded. Nothing renders; show a static image instead. |
 | `onComplete` | `() => void` | — | The reveal finished. Never fires when `autoPlay` is `false`. |

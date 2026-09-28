@@ -13,6 +13,11 @@ import { applyTint, setTint, type TintUniforms } from '../tint';
 export type LaptopSceneProps = {
   /** The DOM layer the screen content is mapped onto; see <ScreenSurface>. */
   handle?: ScreenHandle;
+  /**
+   * Anti-glare display glass: spreads the reflection out until it stops
+   * carrying an image, the way a nano-texture panel does.
+   */
+  matteScreen?: boolean;
   progress: React.RefObject<Progress>;
   modelUrl: string;
   screen?: string | React.ReactNode;
@@ -127,6 +132,7 @@ function Laptop({
   lidAngle,
   screenRef,
   handle,
+  matteScreen,
 }: {
   progress: React.RefObject<Progress>;
   modelUrl: string;
@@ -139,6 +145,7 @@ function Laptop({
   lidAngle: number;
   screenRef: React.RefObject<THREE.Mesh | null>;
   handle?: ScreenHandle;
+  matteScreen?: boolean;
 }) {
   const { scene } = useGLTF(modelUrl);
   const root = React.useRef<THREE.Group>(null);
@@ -256,6 +263,10 @@ function Laptop({
           meshRef={screenRef}
           opacity={lit}
           handle={handle}
+          matte={matteScreen}
+          // This model is a single aluminium material with no front glass of
+          // its own, so the display's surface has to come from here.
+          glass
         />
 
         {/* Backlight spill, so the open lid actually lights the keyboard. */}
@@ -288,6 +299,7 @@ export default function Scene({
   background,
   onReady,
   handle,
+  matteScreen,
 }: LaptopSceneProps) {
   const screenRef = React.useRef<THREE.Mesh | null>(null);
 
@@ -307,6 +319,7 @@ export default function Scene({
         lidAngle={lidAngle}
         screenRef={screenRef}
         handle={handle}
+        matteScreen={matteScreen}
       />
       <CameraRig
         progress={progress}
